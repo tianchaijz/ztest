@@ -252,6 +252,7 @@ hello
 
 === TEST 2: sanity 2
 // this is a comment
+# this is a comment too
 --- request eval: GET /
 '''
         self.assertEqual(len(tokens), 4)
@@ -327,6 +328,48 @@ __DATA__
         self.assertEqual(tokens[6]['type'], Lexer.ITEM)
         self.assertEqual(tokens[6]['item'], 'error_code')
         self.assertEqual(tokens[6]['value'], None)
+
+    @get_tokens()
+    def test_string_block_00(self, tokens=None):
+        '''
+=== TEST 1: sanity
+--- request eval
+"""
+"""
+GET ''.join(['1'*1, '2*2, '3'*3])
+"""
+"""
+'''
+
+        self.assertEqual(len(tokens), 2)
+
+        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
+        self.assertEqual(tokens[1]['item'], 'request')
+        self.assertEqual(tokens[1]['eval'], True)
+        self.assertEqual(tokens[1]['value'], '''
+"""
+GET ''.join(['1'*1, '2*2, '3'*3])
+"""
+''')
+
+    @get_tokens()
+    def test_string_block_01(self, tokens=None):
+        '''
+=== TEST 1: sanity
+--- request eval
+```"""
+GET ''.join(['/', '1'*1, '2'*2, '3'*3])
+"""```
+'''
+
+        self.assertEqual(len(tokens), 2)
+
+        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
+        self.assertEqual(tokens[1]['item'], 'request')
+        self.assertEqual(tokens[1]['eval'], True)
+        self.assertEqual(tokens[1]['value'], '''"""
+GET ''.join(['/', '1'*1, '2'*2, '3'*3])
+"""''')
 
     @get_tokens(raises=LexException, raises_regexp='unexpected block: 1')
     def test_exception_00(self, tokens=None):
