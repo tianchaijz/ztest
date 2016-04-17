@@ -51,15 +51,18 @@ class Pattern(object):
 
 def lex_decorator(fn):
     def wrapper(*args, **kwargs):
-        if isinstance(args[1], str):
-            text = args[1]
+        self = args[0]
+        self.blineno = self.elineno
+        position = fn(*args, **kwargs)
+        if isinstance(position, int):
+            text = args[1][0:position]
         else:
             text = args[1].group(0)
-        self = args[0]
-        self.lineno += text.count('\n')
         if self.verbose:
             print('[%s]: %s' % (fn.__name__, text))
-        return fn(*args, **kwargs)
+        self.elineno += text.count('\n')
+
+        return position
     return wrapper
 
 
@@ -80,7 +83,8 @@ class Lexer(object):
     def __init__(self, verbose=False):
         self.verbose = verbose
         self.state = self.PREAMBLE
-        self.lineno = 0
+        self.blineno = 0
+        self.elineno = 1
         self.tokens = []
 
     def __call__(self, text):
@@ -88,8 +92,10 @@ class Lexer(object):
 
     def append(self, token):
         self.state = token['type']
+        token['lineno'] = self.blineno
         if self.verbose:
-            print('[%s] got token: %s' % (self.__class__, token))
+            print('[%s] got token %s at <line: %d-%d>' % (self.__class__,
+                  token, self.blineno, self.elineno))
         self.tokens.append(token)
 
     def lex(self, text):
@@ -186,7 +192,7 @@ class Lexer(object):
         else:
             position = m.start()
         self.tokens[-1]['type'] = self.ITEM
-        self.tokens[-1]['value'] = text[0:position - 1].strip()
+        self.tokens[-1]['value'] = text[0:position].strip()
 
         return position
 
