@@ -24,8 +24,8 @@ class Pattern(object):
     """ Patterns for ztest.
     """
 
-    case_line_pattern = r'^=== TEST (\d+): ?(.+)?$'
-    item_pattern = r'^--- (\w+) ?(eval|exec)?'
+    case_line_pattern = r'^=== TEST (\d+(\.\d+)?): ?(.+)?$'
+    item_pattern = r'^--- (\w+) ?(eval|exec|like)?'
     item_line_pattern = r'%s: (.+)$' % item_pattern
     item_head_pattern = r'%s$' % item_pattern
 
@@ -156,14 +156,14 @@ class Lexer(object):
         self.append({
             'type': self.CASE_LINE,
             'order': m.group(1),
-            'value': m.group(2)
+            'value': m.group(3)
         })
 
     @lex_decorator
     def lex_item_line(self, m):
         token = {
             'type': self.ITEM,
-            'item': m.group(1),
+            'name': m.group(1),
             'value': m.group(3).strip()
         }
 
@@ -175,7 +175,7 @@ class Lexer(object):
     def lex_item_head(self, m):
         token = {
             'type': self.ITEM_HEAD,
-            'item': m.group(1),
+            'name': m.group(1),
             'value': None
         }
 
