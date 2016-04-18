@@ -11,16 +11,18 @@
 from __future__ import print_function
 
 import re
+import unittest
 
 __version__ = '0.0.1'
 __author__ = 'Jinzheng Zhang <tianchaijz@gmail.com>'
 __all__ = [
-    'Pattern', 'Lexer', 'LexException', 'Cases'
+    'Pattern', 'Lexer', 'LexException', 'Cases', 'ContextTestCase'
 ]
 
 
 class Pattern(object):
-    """Patterns for ztest."""
+    """ Patterns for ztest.
+    """
 
     case_line_pattern = r'^=== TEST (\d+): ?(.+)?$'
     item_pattern = r'^--- (\w+) ?(eval|exec)?'
@@ -67,7 +69,8 @@ def lex_decorator(fn):
 
 
 class Lexer(object):
-    """Lexer for ztest."""
+    """ Lexer for ztest.
+    """
 
     rules = ['comment_line', 'blank_line', 'case_line',
              'item_line', 'item_head',
@@ -245,3 +248,24 @@ class Cases(object):
                 name = token['value']
         if items:
             self.cases.append(Case(name, items))
+
+
+class ContextTestCase(unittest.TestCase):
+    """ TestCase classes that want a context should
+        inherit from this class.
+    """
+    def __init__(self, methodName='runTest', ctx=None):
+        super(ContextTestCase, self).__init__(methodName)
+        self.ctx = ctx
+
+    @staticmethod
+    def addContext(testClass, ctx=None):
+        """ Create a suite containing all tests taken from the given
+            subclass, passing them the contex.
+        """
+        loader = unittest.TestLoader()
+        cases = loader.getTestCaseNames(testClass)
+        suite = unittest.TestSuite()
+        for case in cases:
+            suite.addTest(testClass(case, ctx=ctx))
+        return suite
