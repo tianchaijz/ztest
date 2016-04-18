@@ -1,21 +1,36 @@
 import unittest
-from ztest import Lexer, LexException
+from functools import wraps
+from ztest import Lexer, LexException, Cases
 
 
 def get_tokens(verbose=False, raises=None, raises_regexp=None):
     def wrapper(fn):
+        @wraps(fn)
         def wrapped(*args, **kwargs):
-            lexer = Lexer(verbose=verbose)
             assert fn.__doc__
+            self, lexer = args[0], Lexer(verbose=verbose)
             if raises:
                 if raises_regexp:
-                    args[0].assertRaisesRegexp(raises, raises_regexp,
-                                               lexer, fn.__doc__)
+                    self.assertRaisesRegexp(raises, raises_regexp,
+                                            lexer, fn.__doc__)
                 else:
-                    args[0].assertRaises(raises, lexer, fn.__doc__)
+                    self.assertRaises(raises, lexer, fn.__doc__)
             else:
                 kwargs['tokens'] = lexer(fn.__doc__)
                 return fn(*args, **kwargs)
+        return wrapped
+    return wrapper
+
+
+def get_cases(verbose=False):
+    def wrapper(fn):
+        @wraps(fn)
+        def wrapped(*args, **kwargs):
+            assert fn.__doc__
+            lexer = Lexer(verbose=verbose)
+            tokens = lexer(fn.__doc__)
+            kwargs['preamble'], kwargs['cases'] = Cases()(tokens)
+            return fn(*args, **kwargs)
         return wrapped
     return wrapper
 
@@ -261,8 +276,9 @@ hello
 
 ''')
 
+    @get_cases()
     @get_tokens()
-    def test_case_10(self, tokens=None):
+    def test_case_10(self, tokens=None, preamble=None, cases=None):
         '''
 # this is a comment
 === TEST 1: sanity 1
@@ -282,8 +298,18 @@ hello
         self.assertEqual(tokens[3]['item'], 'request')
         self.assertEqual(tokens[3]['value'], 'GET /')
 
+        self.assertEqual(preamble, None)
+        self.assertEqual(len(cases), 2)
+
+        self.assertEqual(len(cases[0].items), 1)
+        self.assertEqual(cases[0].name, 'sanity 1')
+
+        self.assertEqual(len(cases[1].items), 1)
+        self.assertEqual(cases[1].name, 'sanity 2')
+
+    @get_cases()
     @get_tokens()
-    def test_case_11(self, tokens=None):
+    def test_case_11(self, tokens=None, preamble=None, cases=None):
         '''
 import sys
 
@@ -318,6 +344,15 @@ Hello World
         self.assertEqual(tokens[7]['type'], Lexer.CASE_LINE)
         self.assertEqual(tokens[7]['order'], '2')
         self.assertEqual(tokens[7]['value'], None)
+
+        self.assertEqual(preamble.strip(), 'import sys')
+        self.assertEqual(len(cases), 2)
+
+        self.assertEqual(len(cases[0].items), 5)
+        self.assertEqual(cases[0].name, 'sanity')
+
+        self.assertEqual(len(cases[1].items), 1)
+        self.assertEqual(cases[1].name, None)
 
     @get_tokens()
     def test_case_12(self, tokens=None):
@@ -400,7 +435,7 @@ GET ''.join(['/', '1'*1, '2'*2, '3'*3])
 """''')
 
     @get_tokens(raises=LexException, raises_regexp='unexpected block: 1')
-    def test_exception_00(self, tokens=None):
+    def test_lex_exception_00(self, tokens=None):
         '''
 import sys
 
@@ -410,7 +445,7 @@ __DATA__
 
     @get_tokens(raises=LexException,
                 raises_regexp='unexpected string: ```1```')
-    def test_exception_01(self, tokens=None):
+    def test_lex_exception_01(self, tokens=None):
         '''
 import sys
 

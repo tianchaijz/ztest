@@ -15,7 +15,7 @@ import re
 __version__ = '0.0.1'
 __author__ = 'Jinzheng Zhang <tianchaijz@gmail.com>'
 __all__ = [
-    'Pattern', 'Lexer', 'LexException'
+    'Pattern', 'Lexer', 'LexException', 'Cases'
 ]
 
 
@@ -208,3 +208,40 @@ class Lexer(object):
 
 class LexException(Exception):
     pass
+
+
+class Case(object):
+    def __init__(self, name, items):
+        self.name = name
+        self.items = items
+
+    def __str__(self):
+        return '<%s>: %s' % (self.name, self.items)
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class Cases(object):
+    def __init__(self):
+        self.preamble = None
+        self.cases = []
+
+    def __call__(self, tokens):
+        self.parse(tokens)
+        return (self.preamble, self.cases)
+
+    def parse(self, tokens):
+        name, items = None, []
+        for token in tokens:
+            if token['type'] == Lexer.PREAMBLE:
+                self.preamble = token['value']
+            if token['type'] == Lexer.ITEM:
+                items.append(token)
+            if token['type'] == Lexer.CASE_LINE:
+                if items:
+                    self.cases.append(Case(name, items))
+                    items = []
+                name = token['value']
+        if items:
+            self.cases.append(Case(name, items))
