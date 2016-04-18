@@ -1,0 +1,29 @@
+__DATA__
+
+=== TEST 1.0: sanity 0
+--- config
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.print("hello")
+        }
+    }
+--- request
+GET /t
+--- response_body
+hello
+--- response_headers
+Content-Type: text/plain
+
+=== TEST 1.1: sanity 1
+--- config
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.print("world")
+        }
+    }
+--- request
+GET /t
+--- response_body
+world
