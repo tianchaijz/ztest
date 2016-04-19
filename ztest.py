@@ -47,7 +47,7 @@ class Pattern(object):
     )  # reversed
 
     string_block = re.compile(
-        r'^\s*(\'{3,}|"{3,}|`{3,})'
+        r'^\s*([`~,;%@><]{3,})'
         r'([\s\S]+)'
         r'\1\s*(?:\n*|$)'
     )
