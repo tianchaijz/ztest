@@ -24,12 +24,13 @@ class Pattern(object):
     """ Patterns for ztest.
     """
 
+    comment_pattern = r'^\s*(//|#).*$'
     case_line_pattern = r'^=== TEST (\d+(\.\d+)?): ?(.+)?$'
     item_pattern = r'^--- (\w+) ?(eval|exec|like)?'
     item_line_pattern = r'%s: (.+)$' % item_pattern
     item_head_pattern = r'%s$' % item_pattern
 
-    comment_line = re.compile(r'^\s*(//|#).*$', re.M)
+    comment_line = re.compile(comment_pattern, re.M)
     blank_line = re.compile(r'^\s*\n+')
     preamble = re.compile(
         r'([\s\S]*)'
@@ -38,7 +39,8 @@ class Pattern(object):
     case_line = re.compile(case_line_pattern, re.M)
     item_line = re.compile(item_line_pattern, re.M)
     item_head = re.compile(item_head_pattern, re.M)
-    item_block = re.compile(r'%s|%s|%s' % (
+    item_block = re.compile(r'%s|%s|%s|%s' % (
+        comment_pattern,
         case_line_pattern,
         item_line_pattern,
         item_head_pattern), re.M
