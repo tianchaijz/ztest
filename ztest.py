@@ -26,7 +26,7 @@ class Pattern(object):
 
     comment_pattern = r'^\s*(//|#).*$'
     case_line_pattern = r'^=== TEST (\d+(\.\d+)?): ?(.+)?$'
-    item_pattern = r'^--- (\w+) ?(eval|exec|like)?'
+    item_pattern = r'^--- (\w+) ?((?:\w+ ?)*)'
     item_line_pattern = r'%s: (.+)$' % item_pattern
     item_head_pattern = r'%s$' % item_pattern
 
@@ -94,6 +94,10 @@ class Lexer(object):
 
     def __call__(self, text):
         return self.lex(text)
+
+    @staticmethod
+    def get_item_option(s):
+        return filter(lambda x: x != '', s.strip().split(' '))
 
     def append(self, token):
         self.state = token['type']
@@ -170,7 +174,7 @@ class Lexer(object):
         }
 
         if m.group(2):
-            token[m.group(2)] = True
+            token['option'] = Lexer.get_item_option(m.group(2))
         self.append(token)
 
     @lex_decorator
@@ -182,7 +186,7 @@ class Lexer(object):
         }
 
         if m.group(2):
-            token[m.group(2)] = True
+            token['option'] = Lexer.get_item_option(m.group(2))
         self.append(token)
 
     @lex_decorator
