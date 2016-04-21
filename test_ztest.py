@@ -41,9 +41,9 @@ class TestZtest(unittest.TestCase):
         '''import sys
 __DATA__'''
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0]['lineno'], 1)
-        self.assertEqual(tokens[0]['type'], Lexer.PREAMBLE)
-        self.assertEqual(tokens[0]['value'], '''import sys
+        self.assertEqual(tokens[0].lineno, 1)
+        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
+        self.assertEqual(tokens[0].value, '''import sys
 ''')
 
     @get_tokens()
@@ -53,9 +53,9 @@ import sys
 
 __DATA__'''
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0]['lineno'], 1)
-        self.assertEqual(tokens[0]['type'], Lexer.PREAMBLE)
-        self.assertEqual(tokens[0]['value'], '''
+        self.assertEqual(tokens[0].lineno, 1)
+        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
+        self.assertEqual(tokens[0].value, '''
 import sys
 
 ''')
@@ -68,9 +68,9 @@ import sys
 __DATA__
 '''
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0]['lineno'], 1)
-        self.assertEqual(tokens[0]['type'], Lexer.PREAMBLE)
-        self.assertEqual(tokens[0]['value'], '''
+        self.assertEqual(tokens[0].lineno, 1)
+        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
+        self.assertEqual(tokens[0].value, '''
 import sys
 
 ''')
@@ -84,9 +84,9 @@ __DATA__
 
 '''
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0]['lineno'], 1)
-        self.assertEqual(tokens[0]['type'], Lexer.PREAMBLE)
-        self.assertEqual(tokens[0]['value'], '''
+        self.assertEqual(tokens[0].lineno, 1)
+        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
+        self.assertEqual(tokens[0].value, '''
 import sys
 
 ''')
@@ -102,16 +102,16 @@ __DATA__
 '''
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[0]['lineno'], 1)
-        self.assertEqual(tokens[0]['type'], Lexer.PREAMBLE)
-        self.assertEqual(tokens[0]['value'], '''
+        self.assertEqual(tokens[0].lineno, 1)
+        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
+        self.assertEqual(tokens[0].value, '''
 import sys
 
 ''')
-        self.assertEqual(tokens[1]['lineno'], 6)
-        self.assertEqual(tokens[1]['type'], Lexer.CASE_LINE)
-        self.assertEqual(tokens[1]['value'], 'sanity')
-        self.assertEqual(tokens[1]['order'], '1')
+        self.assertEqual(tokens[1].lineno, 6)
+        self.assertEqual(tokens[1].type, Lexer.CASE_LINE)
+        self.assertEqual(tokens[1].value, 'sanity')
+        self.assertEqual(tokens[1].order, '1')
 
     @get_tokens()
     def test_case_01(self, tokens=None):
@@ -125,9 +125,9 @@ __DATA__
 '''
         self.assertEqual(len(tokens), 3)
 
-        self.assertEqual(tokens[2]['lineno'], 7)
-        self.assertEqual(tokens[2]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[2]['name'], 'request')
+        self.assertEqual(tokens[2].lineno, 7)
+        self.assertEqual(tokens[2].type, Lexer.ITEM)
+        self.assertEqual(tokens[2].name, 'request')
 
     @get_tokens()
     def test_case_02(self, tokens=None):
@@ -142,11 +142,11 @@ GET /
 '''
         self.assertEqual(len(tokens), 3)
 
-        self.assertEqual(tokens[2]['lineno'], 7)
-        self.assertEqual(tokens[2]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[2]['name'], 'request')
-        self.assertEqual(tokens[2]['value'], 'GET /')
-        self.assertEqual(tokens[2]['option'], ['eval'])
+        self.assertEqual(tokens[2].lineno, 7)
+        self.assertEqual(tokens[2].type, Lexer.ITEM)
+        self.assertEqual(tokens[2].name, 'request')
+        self.assertEqual(tokens[2].value, 'GET /')
+        self.assertEqual(tokens[2].option, ['eval'])
 
     @get_tokens()
     def test_case_03(self, tokens=None):
@@ -157,13 +157,13 @@ GET /
 '''
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[0]['lineno'], 2)
+        self.assertEqual(tokens[0].lineno, 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['value'], 'GET /')
-        self.assertEqual(tokens[1]['option'], ['eval'])
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].value, 'GET /')
+        self.assertEqual(tokens[1].option, ['eval'])
 
     @get_tokens()
     def test_case_04(self, tokens=None):
@@ -173,10 +173,10 @@ GET /
 '''
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['value'], 'GET /')
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].value, 'GET /')
 
     @get_tokens()
     def test_case_05(self, tokens=None):
@@ -186,11 +186,11 @@ GET /
 '''
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['value'], 'GET /')
-        self.assertEqual(tokens[1]['option'], ['eval'])
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].value, 'GET /')
+        self.assertEqual(tokens[1].option, ['eval'])
 
     @get_tokens()
     def test_case_06(self, tokens=None):
@@ -202,10 +202,10 @@ GET /
 '''
         self.assertEqual(len(tokens), 3)
 
-        self.assertEqual(tokens[2]['lineno'], 5)
-        self.assertEqual(tokens[2]['type'], Lexer.CASE_LINE)
-        self.assertEqual(tokens[2]['value'], 'sanity 2')
-        self.assertEqual(tokens[2]['order'], '2')
+        self.assertEqual(tokens[2].lineno, 5)
+        self.assertEqual(tokens[2].type, Lexer.CASE_LINE)
+        self.assertEqual(tokens[2].value, 'sanity 2')
+        self.assertEqual(tokens[2].order, '2')
 
     @get_tokens()
     def test_case_07(self, tokens=None):
@@ -219,10 +219,10 @@ GET /
 '''
         self.assertEqual(len(tokens), 4)
 
-        self.assertEqual(tokens[3]['lineno'], 6)
-        self.assertEqual(tokens[3]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[3]['name'], 'request')
-        self.assertEqual(tokens[3]['value'], 'GET /')
+        self.assertEqual(tokens[3].lineno, 6)
+        self.assertEqual(tokens[3].type, Lexer.ITEM)
+        self.assertEqual(tokens[3].name, 'request')
+        self.assertEqual(tokens[3].value, 'GET /')
 
     @get_tokens()
     def test_case_08(self, tokens=None):
@@ -242,15 +242,15 @@ world
 '''
         self.assertEqual(len(tokens), 6)
 
-        self.assertEqual(tokens[2]['lineno'], 4)
-        self.assertEqual(tokens[2]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[2]['name'], 'response_body')
-        self.assertEqual(tokens[2]['value'], 'hello')
+        self.assertEqual(tokens[2].lineno, 4)
+        self.assertEqual(tokens[2].type, Lexer.ITEM)
+        self.assertEqual(tokens[2].name, 'response_body')
+        self.assertEqual(tokens[2].value, 'hello')
 
-        self.assertEqual(tokens[5]['lineno'], 11)
-        self.assertEqual(tokens[5]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[5]['name'], 'response_body')
-        self.assertEqual(tokens[5]['value'], 'world')
+        self.assertEqual(tokens[5].lineno, 11)
+        self.assertEqual(tokens[5].type, Lexer.ITEM)
+        self.assertEqual(tokens[5].name, 'response_body')
+        self.assertEqual(tokens[5].value, 'world')
 
     @get_tokens()
     def test_case_09(self, tokens=None):
@@ -268,10 +268,10 @@ hello
 '''
         self.assertEqual(len(tokens), 4)
 
-        self.assertEqual(tokens[3]['lineno'], 7)
-        self.assertEqual(tokens[3]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[3]['name'], 'response_body')
-        self.assertEqual(tokens[3]['value'], '''
+        self.assertEqual(tokens[3].lineno, 7)
+        self.assertEqual(tokens[3].type, Lexer.ITEM)
+        self.assertEqual(tokens[3].name, 'response_body')
+        self.assertEqual(tokens[3].value, '''
 hello
 
 ''')
@@ -291,22 +291,22 @@ hello
 '''
         self.assertEqual(len(tokens), 4)
 
-        self.assertEqual(tokens[1]['lineno'], 4)
+        self.assertEqual(tokens[1].lineno, 4)
 
-        self.assertEqual(tokens[3]['lineno'], 9)
-        self.assertEqual(tokens[3]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[3]['name'], 'request')
-        self.assertEqual(tokens[3]['value'], 'GET /')
+        self.assertEqual(tokens[3].lineno, 9)
+        self.assertEqual(tokens[3].type, Lexer.ITEM)
+        self.assertEqual(tokens[3].name, 'request')
+        self.assertEqual(tokens[3].value, 'GET /')
 
         self.assertEqual(preamble, None)
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 1)
-        self.assertEqual(tokens[0]['order'], '1.1')
+        self.assertEqual(tokens[0].order, '1.1')
         self.assertEqual(cases[0].name, 'sanity 1')
 
         self.assertEqual(len(cases[1].items), 1)
-        self.assertEqual(tokens[2]['order'], '1.2')
+        self.assertEqual(tokens[2].order, '1.2')
         self.assertEqual(cases[1].name, 'sanity 2')
 
     @get_cases()
@@ -337,19 +337,19 @@ r"^Hello [a-z]$"
 
         self.assertEqual(len(tokens), 9)
 
-        self.assertEqual(tokens[4]['lineno'], 12)
-        self.assertEqual(tokens[4]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[4]['name'], 'response_body')
-        self.assertEqual(tokens[4]['option'], ['like'])
-        self.assertEqual(tokens[4]['value'], '^Hello [a-z]$')
+        self.assertEqual(tokens[4].lineno, 12)
+        self.assertEqual(tokens[4].type, Lexer.ITEM)
+        self.assertEqual(tokens[4].name, 'response_body')
+        self.assertEqual(tokens[4].option, ['like'])
+        self.assertEqual(tokens[4].value, '^Hello [a-z]$')
 
-        self.assertEqual(tokens[6]['name'], 'response_body')
-        self.assertEqual(tokens[6]['option'], ['eval', 'like'])
+        self.assertEqual(tokens[6].name, 'response_body')
+        self.assertEqual(tokens[6].option, ['eval', 'like'])
 
-        self.assertEqual(tokens[7]['lineno'], 20)
-        self.assertEqual(tokens[7]['type'], Lexer.CASE_LINE)
-        self.assertEqual(tokens[7]['order'], '2')
-        self.assertEqual(tokens[7]['value'], None)
+        self.assertEqual(tokens[7].lineno, 20)
+        self.assertEqual(tokens[7].type, Lexer.CASE_LINE)
+        self.assertEqual(tokens[7].order, '2')
+        self.assertEqual(tokens[7].value, None)
 
         self.assertEqual(preamble.strip(), 'import sys')
         self.assertEqual(len(cases), 2)
@@ -381,20 +381,20 @@ __DATA__
 
         self.assertEqual(len(tokens), 7)
 
-        self.assertEqual(tokens[3]['lineno'], 10)
-        self.assertEqual(tokens[3]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[3]['name'], 'server_config')
-        self.assertEqual(tokens[3]['value'], None)
+        self.assertEqual(tokens[3].lineno, 10)
+        self.assertEqual(tokens[3].type, Lexer.ITEM)
+        self.assertEqual(tokens[3].name, 'server_config')
+        self.assertEqual(tokens[3].value, None)
 
-        self.assertEqual(tokens[5]['lineno'], 13)
-        self.assertEqual(tokens[5]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[5]['name'], 'response_body_like')
-        self.assertEqual(tokens[5]['value'], '^Hello')
+        self.assertEqual(tokens[5].lineno, 13)
+        self.assertEqual(tokens[5].type, Lexer.ITEM)
+        self.assertEqual(tokens[5].name, 'response_body_like')
+        self.assertEqual(tokens[5].value, '^Hello')
 
-        self.assertEqual(tokens[6]['lineno'], 15)
-        self.assertEqual(tokens[6]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[6]['name'], 'error_code')
-        self.assertEqual(tokens[6]['value'], None)
+        self.assertEqual(tokens[6].lineno, 15)
+        self.assertEqual(tokens[6].type, Lexer.ITEM)
+        self.assertEqual(tokens[6].name, 'error_code')
+        self.assertEqual(tokens[6].value, None)
 
     @get_tokens()
     def test_case_13(self, tokens=None):
@@ -418,16 +418,16 @@ gzip on;
 
         self.assertEqual(len(tokens), 6)
 
-        self.assertEqual(tokens[2]['lineno'], 7)
-        self.assertEqual(tokens[2]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[2]['name'], 'http_config')
-        self.assertEqual(tokens[2]['value'].strip(), 'gzip on;')
+        self.assertEqual(tokens[2].lineno, 7)
+        self.assertEqual(tokens[2].type, Lexer.ITEM)
+        self.assertEqual(tokens[2].name, 'http_config')
+        self.assertEqual(tokens[2].value.strip(), 'gzip on;')
 
-        self.assertEqual(tokens[4]['lineno'], 13)
-        self.assertEqual(tokens[4]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[4]['name'], 'response_body_like')
-        self.assertEqual(tokens[4]['option'], ['eval'])
-        self.assertEqual(tokens[4]['value'], '''"""
+        self.assertEqual(tokens[4].lineno, 13)
+        self.assertEqual(tokens[4].type, Lexer.ITEM)
+        self.assertEqual(tokens[4].name, 'response_body_like')
+        self.assertEqual(tokens[4].option, ['eval'])
+        self.assertEqual(tokens[4].value, '''"""
 --- request"""''')
 
     @get_tokens()
@@ -444,11 +444,11 @@ GET ''.join(['1'*1, '2*2, '3'*3])
 
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['option'], ['eval'])
-        self.assertEqual(tokens[1]['value'], '''
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].option, ['eval'])
+        self.assertEqual(tokens[1].value, '''
 ```
 GET ''.join(['1'*1, '2*2, '3'*3])
 ```
@@ -466,11 +466,11 @@ GET ''.join(['/', '1'*1, '2'*2, '3'*3])
 
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['option'], ['eval'])
-        self.assertEqual(tokens[1]['value'], '''"""
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].option, ['eval'])
+        self.assertEqual(tokens[1].value, '''"""
 GET ''.join(['/', '1'*1, '2'*2, '3'*3])
 """''')
 
@@ -486,11 +486,11 @@ GET ''.join(['/', '1'*1, '2'*2, '3'*3])
 
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['option'], ['eval'])
-        self.assertEqual(tokens[1]['value'], '''"""
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].option, ['eval'])
+        self.assertEqual(tokens[1].value, '''"""
 GET ''.join(['/', '1'*1, '2'*2, '3'*3])
 """''')
 
@@ -507,11 +507,11 @@ GET /
 
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 3)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['option'], ['eval'])
-        self.assertEqual(tokens[1]['value'], '''"""
+        self.assertEqual(tokens[1].lineno, 3)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].option, ['eval'])
+        self.assertEqual(tokens[1].value, '''"""
 GET /
 """''')
 
@@ -527,11 +527,11 @@ GET /
 
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[1]['lineno'], 4)
-        self.assertEqual(tokens[1]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[1]['name'], 'request')
-        self.assertEqual(tokens[1]['option'], ['eval'])
-        self.assertEqual(tokens[1]['value'], 'GET /')
+        self.assertEqual(tokens[1].lineno, 4)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].option, ['eval'])
+        self.assertEqual(tokens[1].value, 'GET /')
 
     @get_tokens()
     def test_comment_02(self, tokens=None):
@@ -546,11 +546,11 @@ GET /
 
         self.assertEqual(len(tokens), 3)
 
-        self.assertEqual(tokens[2]['lineno'], 5)
-        self.assertEqual(tokens[2]['type'], Lexer.ITEM)
-        self.assertEqual(tokens[2]['name'], 'request')
-        self.assertEqual(tokens[2]['option'], ['eval'])
-        self.assertEqual(tokens[2]['value'], 'GET /')
+        self.assertEqual(tokens[2].lineno, 5)
+        self.assertEqual(tokens[2].type, Lexer.ITEM)
+        self.assertEqual(tokens[2].name, 'request')
+        self.assertEqual(tokens[2].option, ['eval'])
+        self.assertEqual(tokens[2].value, 'GET /')
 
     @get_tokens(raises=LexException, raises_regexp='unexpected block: 1')
     def test_lex_exception_00(self, tokens=None):

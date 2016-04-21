@@ -63,11 +63,38 @@ def lex_decorator(fn):
         else:
             text = args[1].group(0)
         if self.verbose:
-            print('[%s]: %s' % (fn.__name__, text))
+            print('<%s>: %s' % (fn.__name__, text))
         self.elineno += text.count('\n')
 
         return position
     return wrapper
+
+
+class Token(object):
+    types = ["PREAMBLE", "CASE_LINE",
+             "ITEM", "ITEM_HEAD", "ITEM_BLOCK", "NEXT"]
+
+    def __init__(self, type, **kwargs):
+        self.type = type
+        self.value = None
+        self.lineno = 0
+
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+
+    def __str__(self):
+        if hasattr(self, 'name'):
+            return "Token<%s> %s(%s) at line: <%d>" % (Token.types[self.type],
+                                                       self.name,
+                                                       self.value,
+                                                       self.lineno)
+        else:
+            return "Token<%s> (%s) at line: <%d>" % (Token.types[self.type],
+                                                     self.value,
+                                                     self.lineno)
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class Lexer(object):
@@ -78,12 +105,12 @@ class Lexer(object):
              'item_line', 'item_head',
              'string_block', 'item_block']
 
-    PREAMBLE = 1
-    NEXT = 2
-    CASE_LINE = 3
-    ITEM = 4
-    ITEM_HEAD = 5
-    ITEM_BLOCK = 6
+    PREAMBLE = 0
+    CASE_LINE = 1
+    ITEM = 2
+    ITEM_HEAD = 3
+    ITEM_BLOCK = 4
+    NEXT = 5
 
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -100,11 +127,10 @@ class Lexer(object):
         return filter(lambda x: x != '', s.strip().split(' '))
 
     def append(self, token):
-        self.state = token['type']
-        token['lineno'] = self.blineno
+        self.state = token.type
+        token.lineno = self.blineno
         if self.verbose:
-            print('[%s] got token %s at <line: %d-%d>' % (self.__class__,
-                  token, self.blineno, self.elineno))
+            print('<%s> %s' % (self.__class__, token))
         self.tokens.append(token)
 
     def lex(self, text):
@@ -137,8 +163,8 @@ class Lexer(object):
             text = text[position:]
 
         for token in self.tokens:
-            if token['type'] == self.ITEM_HEAD:
-                token['type'] = self.ITEM
+            if token.type == self.ITEM_HEAD:
+                token.type = self.ITEM
 
         return self.tokens
 
@@ -152,47 +178,48 @@ class Lexer(object):
 
     @lex_decorator
     def lex_preamble(self, m):
-        self.append({
-            'type': self.PREAMBLE,
-            'value': m.group(1)
-        })
+        self.append(Token(
+            self.PREAMBLE,
+            value=m.group(1)
+        ))
 
     @lex_decorator
     def lex_case_line(self, m):
-        self.append({
-            'type': self.CASE_LINE,
-            'order': m.group(1),
-            'value': m.group(3)
-        })
+        self.append(Token(
+            self.CASE_LINE,
+            order=m.group(1),
+            value=m.group(3)
+        ))
 
     @lex_decorator
     def lex_item_line(self, m):
-        token = {
-            'type': self.ITEM,
-            'name': m.group(1),
-            'value': m.group(3).strip()
-        }
+        token = Token(
+            self.ITEM,
+            name=m.group(1),
+            option=[],
+            value=m.group(3).strip()
+        )
 
         if m.group(2):
-            token['option'] = Lexer.get_item_option(m.group(2))
+            token.option = Lexer.get_item_option(m.group(2))
         self.append(token)
 
     @lex_decorator
     def lex_item_head(self, m):
-        token = {
-            'type': self.ITEM_HEAD,
-            'name': m.group(1),
-            'value': None
-        }
+        token = Token(
+            self.ITEM_HEAD,
+            name=m.group(1),
+            option=[]
+        )
 
         if m.group(2):
-            token['option'] = Lexer.get_item_option(m.group(2))
+            token.option = Lexer.get_item_option(m.group(2))
         self.append(token)
 
     @lex_decorator
     def lex_item_block(self, text):
         if len(self.tokens) == 0 or \
-                self.tokens[-1]['type'] != self.ITEM_HEAD:
+                self.tokens[-1].type != self.ITEM_HEAD:
             raise LexException('unexpected block: %s' % text)
 
         m = Pattern.item_block.search(text)
@@ -200,19 +227,19 @@ class Lexer(object):
             position = len(text)
         else:
             position = m.start()
-        self.tokens[-1]['type'] = self.ITEM
-        self.tokens[-1]['value'] = text[0:position].strip()
+        self.tokens[-1].type = self.ITEM
+        self.tokens[-1].value = text[0:position].strip()
 
         return position
 
     @lex_decorator
     def lex_string_block(self, m):
         if len(self.tokens) == 0 or \
-                self.tokens[-1]['type'] != self.ITEM_HEAD:
+                self.tokens[-1].type != self.ITEM_HEAD:
             raise LexException('unexpected string: %s' % m.group(0))
 
-        self.tokens[-1]['type'] = self.ITEM
-        self.tokens[-1]['value'] = m.group(2)
+        self.tokens[-1].type = self.ITEM
+        self.tokens[-1].value = m.group(2)
 
 
 class LexException(Exception):
@@ -220,8 +247,9 @@ class LexException(Exception):
 
 
 class Case(object):
-    def __init__(self, name, items):
+    def __init__(self, name, lineno, items):
         self.name = name
+        self.lineno = lineno
         self.items = items
 
     def __str__(self):
@@ -241,19 +269,19 @@ class Cases(object):
         return (self.preamble, self.cases)
 
     def parse(self, tokens):
-        name, items = None, []
+        name, lineno, items = None, 0, []
         for token in tokens:
-            if token['type'] == Lexer.PREAMBLE:
-                self.preamble = token['value']
-            if token['type'] == Lexer.ITEM:
+            if token.type == Lexer.PREAMBLE:
+                self.preamble = token.value
+            if token.type == Lexer.ITEM:
                 items.append(token)
-            if token['type'] == Lexer.CASE_LINE:
+            if token.type == Lexer.CASE_LINE:
                 if items:
-                    self.cases.append(Case(name, items))
+                    self.cases.append(Case(name, lineno, items))
                     items = []
-                name = token['value']
+                name, lineno = token.value, token.lineno
         if items:
-            self.cases.append(Case(name, items))
+            self.cases.append(Case(name, lineno, items))
 
 
 class ContextTestCase(unittest.TestCase):

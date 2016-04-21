@@ -162,12 +162,12 @@ class TestNginx(ContextTestCase):
 
     def prepare(self):
         for idx, item in enumerate(self.items):
-            item_name = item['name']
+            item_name = item.name
             assert item_name in TestNginx.items, 'unknown item: %s' % item_name
             if item_name in TestNginx.common_items:
-                if 'eval' in item:
-                    item['value'] = eval(item['value'], None, self.env)
-                getattr(self, item['name'])(item['value'])
+                if 'eval' in item.option:
+                    item.value = eval(item.value, None, self.env)
+                getattr(self, item.name)(item.value)
             if item_name in TestNginx.block_items:
                 break
         self.items = self.items[idx:]
@@ -175,11 +175,11 @@ class TestNginx(ContextTestCase):
     def _blocks(self):
         block = {}
         for item in self.items:
-            item_name = item['name']
+            item_name = item.name
             assert item_name in TestNginx.block_items, \
                 'unknown block item: %s' % item_name
-            if 'eval' in item:
-                item['value'] = eval(item['value'], None, self.env)
+            if 'eval' in item.option:
+                item.value = eval(item.value, None, self.env)
             if item_name in block:
                 yield block
                 block = {}
@@ -192,23 +192,23 @@ class TestNginx(ContextTestCase):
 
     def do_request(self, block):
         request = block['request']
-        if 'exec' in request:
-            return self._exec(request['value'])
+        if 'exec' in request.option:
+            return self._exec(request.value)
 
-        m = request_pattern.match(request['value'])
-        assert m, "invalid request block: " + request['value']
+        m = request_pattern.match(request.value)
+        assert m, "invalid request block: " + request.value
 
         headers, body = m.group('headers'), m.group('body')
         if 'more_headers' in block:
             if headers is None:
-                headers = block['more_headers']['value']
+                headers = block['more_headers'].value
             else:
-                headers += '\n' + block['more_headers']['value']
+                headers += '\n' + block['more_headers'].value
         if 'request_body' in block:
             if body is None:
-                body = block['request_body']['value']
+                body = block['request_body'].value
             else:
-                body += block['request_body']['value']
+                body += block['request_body'].value
 
         headers = get_headers(headers)
         method, uri = m.group('method'), m.group('uri')
@@ -232,19 +232,19 @@ class TestNginx(ContextTestCase):
             self.assertEqual(first, second)
 
     def assert_response(self, r, item):
-        self._exec(item['value'])
+        self._exec(item.value)
 
     def assert_response_body(self, r, item):
-        self.more_assert(item['value'], r.content, 'like' in item)
+        self.more_assert(item.value, r.content, 'like' in item.option)
 
     def assert_response_headers(self, r, item):
-        like = 'like' in item
-        headers = get_headers(item['value'])
+        like = 'like' in item.option
+        headers = get_headers(item.value)
         for k, v in headers.iteritems():
             self.more_assert(v, r.headers[k], like)
 
     def assert_status_code(self, r, item):
-        self.more_assert(item['value'], str(r.status_code), 'like' in item)
+        self.more_assert(item.value, str(r.status_code), 'like' in item.option)
 
     def test_requests(self):
         if self.skip or self.items is None:
