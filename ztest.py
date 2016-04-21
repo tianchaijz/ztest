@@ -263,7 +263,7 @@ class ContextTestCase(unittest.TestCase):
     @staticmethod
     def addContext(testClass, ctx=None):
         """ Create a suite containing all tests taken from the given
-            subclass, passing them the contex.
+            subclass, passing them the context.
         """
         loader = unittest.TestLoader()
         cases = loader.getTestCaseNames(testClass)
