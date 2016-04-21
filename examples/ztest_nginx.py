@@ -14,12 +14,12 @@ sys.path.append(os.path.expandvars('$PWD'))
 from ztest import Lexer, Cases, ContextTestCase
 
 request_pattern = re.compile(
-    r'^(?P<method>\w+) (?P<uri>\S+) ?(?P<version>\S+)?(?:\n|$)'
-    r'(?:\n(?P<headers>(?:.+(?:\n|$))+))?'
-    r'(?:\n(?P<body>(?:[\s\S])+))?', re.M
+    r'^\s*(?P<method>\w+) (?P<uri>\S+) ?(?P<version>\S+)?(\n|$)'
+    r'(?P<headers>(^.+(\n|$))+)?'
+    r'(\n(?P<body>([\s\S])+))?', re.M
 )
 
-test_directory = 't'
+test_directory = 't/nginx'
 openresty_root = '/usr/local/openresty/nginx'
 nginx_api = '127.0.0.1:1984'
 nginx_template = '''
@@ -59,16 +59,6 @@ def shell(command):
     return process.communicate()[0]
 
 
-def restore_global_env(env):
-    global_env = globals()
-    keys = global_env.keys()
-    for k in keys:
-        if k in env:
-            global_env[k] = env[k]
-        else:
-            del global_env[k]
-
-
 def gather_files(test_dir):
     if os.path.isfile(test_dir):
         return [test_dir] if test_dir.endswith('zt') else []
@@ -81,14 +71,14 @@ def gather_files(test_dir):
     return test_files
 
 
-def add_test_case(zt, cases, suite):
+def add_test_case(zt, suite, cases, env):
     for case in cases:
         if case.name is None:
             case.name = ''
         suite.addTest(
             ContextTestCase.addContext(
                 type('[%s] in <%s>' % (case.name, zt), (TestNginx,), {}),
-                ctx={'case': case}))
+                ctx={'case': case, 'env': env}))
 
 
 def get_headers(text):
@@ -116,7 +106,6 @@ class TestNginx(ContextTestCase):
         self.setup_ = None
         self.teardown_ = None
         self.skip = False
-        self.env = {'_': self}
 
         if self.__class__.__name__ == 'TestNginx':
             self.skip = True
@@ -127,6 +116,11 @@ class TestNginx(ContextTestCase):
 
         self.name = self.ctx['case'].name
         self.items = self.ctx['case'].items
+        if isinstance(self.ctx['env'], dict):
+            self.env = self.ctx['env']
+        else:
+            self.env = {}
+        self.env['_'] = self
 
         self.prepare()
 
@@ -172,7 +166,7 @@ class TestNginx(ContextTestCase):
             assert item_name in TestNginx.items, 'unknown item: %s' % item_name
             if item_name in TestNginx.common_items:
                 if 'eval' in item:
-                    item['value'] = eval(item['value'], globals(), self.env)
+                    item['value'] = eval(item['value'], None, self.env)
                 getattr(self, item['name'])(item['value'])
             if item_name in TestNginx.block_items:
                 break
@@ -185,7 +179,7 @@ class TestNginx(ContextTestCase):
             assert item_name in TestNginx.block_items, \
                 'unknown block item: %s' % item_name
             if 'eval' in item:
-                item['value'] = eval(item['value'], globals(), self.env)
+                item['value'] = eval(item['value'], None, self.env)
             if item_name in block:
                 yield block
                 block = {}
@@ -194,7 +188,7 @@ class TestNginx(ContextTestCase):
             yield block
 
     def _exec(self, code):
-        exec(code, globals(), self.env)
+        exec(code, None, self.env)
 
     def do_request(self, block):
         request = block['request']
@@ -202,7 +196,7 @@ class TestNginx(ContextTestCase):
             return self._exec(request['value'])
 
         m = request_pattern.match(request['value'])
-        assert m, "invalid request block"
+        assert m, "invalid request block: " + request['value']
 
         headers, body = m.group('headers'), m.group('body')
         if 'more_headers' in block:
@@ -262,22 +256,17 @@ class TestNginx(ContextTestCase):
 
 
 def run_test():
-    default_env, global_env = {}, globals()
-    for k in global_env.keys():
-        default_env[k] = global_env[k]
-
     zts = gather_files(test_directory)
     if not zts:
         return
 
     suite = unittest.TestSuite()
-
     for zt in zts:
-        restore_global_env(default_env)
+        env = {}
         preamble, cases = Cases()(Lexer()(open(zt).read()))
         if preamble:
-            exec(preamble, None, globals())
-        add_test_case(zt, cases, suite)
+            exec(preamble, None, env)
+        add_test_case(zt, suite, cases, env)
 
     return unittest.TextTestRunner(verbosity=2).run(suite)
 

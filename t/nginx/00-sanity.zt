@@ -1,3 +1,5 @@
+_host = "tianchaijz.me"
+
 __DATA__
 
 === TEST 1.0: sanity 0
@@ -27,3 +29,24 @@ Content-Type: text/plain
 GET /t
 --- response_body
 world
+
+=== TEST 1.2: sanity 2
+--- config
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.req.read_body()
+            ngx.header["Host"] = ngx.var.http_host
+            ngx.print(ngx.req.get_body_data())
+        }
+    }
+--- request eval
+"""
+POST /t
+Host: {host}
+
+hi""".format(host=_host)
+--- response_body
+hi
+--- response_headers eval
+"Host: " + _host

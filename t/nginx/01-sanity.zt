@@ -1,5 +1,3 @@
-__DATA__
-
 === TEST 1.0: sanity 0
 --- config
     location /t {
@@ -20,13 +18,12 @@ Content-Type: text/plain
     location /t {
         default_type text/plain;
         content_by_lua_block {
-            ngx.header['Host'] = ngx.var.http_host
+            ngx.header["Host"] = ngx.var.http_host
             ngx.print("world")
         }
     }
 --- request
 GET /t
-
 Host: tianchaijz.me
 
 --- response_body
@@ -36,7 +33,6 @@ Host: tianchaijz.me
 
 --- request
 GET /t
-
 Host: www.tianchaijz.me
 --- response_body
 world
