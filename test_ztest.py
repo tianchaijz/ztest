@@ -435,11 +435,11 @@ gzip on;
         '''
 === TEST 1: sanity
 --- request eval
-```
+~~~
 ```
 GET ''.join(['1'*1, '2*2, '3'*3])
 ```
-```
+~~~
 '''
 
         self.assertEqual(len(tokens), 2)
@@ -571,6 +571,22 @@ __DATA__
 
 ```1```
 '''
+
+    @get_tokens(raises=LexException,
+                raises_regexp='unexpected block: 1')
+    def test_lex_exception_02(self, tokens=None):
+        '''
+import sys
+
+__DATA__
+
+--- request
+```
+```
+1
+```
+'''
+
 
 if __name__ == '__main__':
     unittest.main()
