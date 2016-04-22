@@ -1,0 +1,47 @@
+=== TEST 1.0: multiple requests
+--- config
+    location /s {
+        content_by_lua_block {
+            ngx.print("hello")
+        }
+    }
+
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.print("world")
+        }
+    }
+--- request
+GET /s
+--- response_body
+hello
+
+--- request
+GET /t
+--- response_body
+world
+--- response_headers
+Content-Type: text/plain
+
+=== TEST 1.1: request eval
+--- config
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.header["Host"] = ngx.var.http_host
+            ngx.print("world")
+        }
+    }
+--- request eval
+["GET /t", "GET /t"]
+--- more_headers
+Host: tianchaijz.me
+
+--- response_body eval
+["world", "world"]
+--- response_headers exec
+```
+_.assertEqual('tianchaijz.me', r[0].headers['Host'])
+_.assertEqual('tianchaijz.me', r[1].headers['Host'])
+```

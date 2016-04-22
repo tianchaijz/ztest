@@ -1,0 +1,36 @@
+=== TEST 1.0: no error log
+--- config
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.print("hello")
+        }
+    }
+--- request
+GET /t
+--- response_body
+hello
+--- status_code: 200
+--- response_headers
+Content-Type: text/plain
+--- no_error_log
+
+=== TEST 1.1: grep error log
+--- config
+    location /t {
+        default_type text/plain;
+        content_by_lua_block {
+            ngx.log(ngx.ERR, "catch it")
+            ngx.header["Host"] = ngx.var.http_host
+            ngx.print("world")
+        }
+    }
+--- request
+GET /t
+Host: tianchaijz.me
+--- response_body
+world
+--- response_headers
+Host: tianchaijz.me
+--- error_log
+\[error\].+catch it
