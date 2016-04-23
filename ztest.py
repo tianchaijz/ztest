@@ -26,6 +26,7 @@ class Pattern(object):
     """
 
     comment_pattern = r'^\s*(//|#).*$'
+    delimiter_pattern = '(?P<delimiter>__EOF__)$'
     case_line_pattern = r'^=== (TEST (\d+(\.\d+)?): ?(.+)?)$'
     item_pattern = r'^--- (\w+) ?((?:\w+ ?)*)'
     item_line_pattern = r'%s: (.+)$' % item_pattern
@@ -40,8 +41,9 @@ class Pattern(object):
     case_line = re.compile(case_line_pattern, re.M)
     item_line = re.compile(item_line_pattern, re.M)
     item_head = re.compile(item_head_pattern, re.M)
-    item_block = re.compile(r'%s|%s|%s|%s' % (
+    item_block = re.compile(r'%s|%s|%s|%s|%s' % (
         comment_pattern,
+        delimiter_pattern,
         case_line_pattern,
         item_line_pattern,
         item_head_pattern), re.M
@@ -231,8 +233,13 @@ class Lexer(object):
             position = len(text)
         else:
             position = m.start()
+
+        if m and m.group('delimiter'):
+            self.tokens[-1].value = text[0:position]
+            position += len(m.group('delimiter'))
+        else:
+            self.tokens[-1].value = text[0:position].strip()
         self.tokens[-1].type = self.ITEM
-        self.tokens[-1].value = text[0:position].strip()
 
         return position
 

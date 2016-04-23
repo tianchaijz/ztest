@@ -427,6 +427,69 @@ gzip on;
 --- request"""''')
 
     @get_tokens()
+    def test_delimiter_00(self, tokens=None):
+        '''
+--- config
+__EOF__
+
+--- response_body
+hello
+__EOF__ world
+__EOF__
+'''
+
+        self.assertEqual(len(tokens), 2)
+
+        self.assertEqual(tokens[0].lineno, 2)
+        self.assertEqual(tokens[0].type, Lexer.ITEM)
+        self.assertEqual(tokens[0].name, 'config')
+        self.assertEqual(tokens[0].value, '')
+
+        self.assertEqual(tokens[1].lineno, 5)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'response_body')
+        self.assertEqual(tokens[1].value, '''hello
+__EOF__ world
+''')
+
+    @get_tokens()
+    def test_delimiter_01(self, tokens=None):
+        '''
+--- config
+ __EOF__
+'''
+
+        self.assertEqual(len(tokens), 1)
+
+        self.assertEqual(tokens[0].lineno, 2)
+        self.assertEqual(tokens[0].type, Lexer.ITEM)
+        self.assertEqual(tokens[0].name, 'config')
+        self.assertEqual(tokens[0].value, ' ')
+
+    @get_tokens()
+    def test_delimiter_02(self, tokens=None):
+        '''
+--- config
+
+__EOF__
+
+--- request
+GET /
+'''
+
+        self.assertEqual(len(tokens), 2)
+
+        self.assertEqual(tokens[0].lineno, 2)
+        self.assertEqual(tokens[0].type, Lexer.ITEM)
+        self.assertEqual(tokens[0].name, 'config')
+        self.assertEqual(tokens[0].value, '')
+
+        self.assertEqual(tokens[1].lineno, 6)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].value, 'GET /')
+
+    @get_tokens()
     def test_string_block_00(self, tokens=None):
         '''
 === TEST 1: sanity
@@ -583,6 +646,18 @@ __DATA__
 ```
 '''
 
+    @get_tokens(raises=LexException,
+                raises_regexp='unexpected block: __EOF__')
+    def test_lex_exception_03(self, tokens=None):
+        '''
+import sys
+
+__DATA__
+
+--- request
+__EOF__
+__EOF__
+'''
 
 if __name__ == '__main__':
     unittest.main()
