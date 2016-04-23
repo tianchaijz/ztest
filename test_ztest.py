@@ -110,8 +110,7 @@ import sys
 ''')
         self.assertEqual(tokens[1].lineno, 6)
         self.assertEqual(tokens[1].type, Lexer.CASE_LINE)
-        self.assertEqual(tokens[1].value, 'sanity')
-        self.assertEqual(tokens[1].order, '1')
+        self.assertEqual(tokens[1].name, 'TEST 1: sanity')
 
     @get_tokens()
     def test_case_01(self, tokens=None):
@@ -204,8 +203,7 @@ GET /
 
         self.assertEqual(tokens[2].lineno, 5)
         self.assertEqual(tokens[2].type, Lexer.CASE_LINE)
-        self.assertEqual(tokens[2].value, 'sanity 2')
-        self.assertEqual(tokens[2].order, '2')
+        self.assertEqual(tokens[2].name, 'TEST 2: sanity 2')
 
     @get_tokens()
     def test_case_07(self, tokens=None):
@@ -302,12 +300,10 @@ hello
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 1)
-        self.assertEqual(tokens[0].order, '1.1')
-        self.assertEqual(cases[0].name, 'sanity 1')
+        self.assertEqual(cases[0].name, 'TEST 1.1: sanity 1')
 
         self.assertEqual(len(cases[1].items), 1)
-        self.assertEqual(tokens[2].order, '1.2')
-        self.assertEqual(cases[1].name, 'sanity 2')
+        self.assertEqual(cases[1].name, 'TEST 1.2: sanity 2')
 
     @get_cases()
     @get_tokens()
@@ -348,17 +344,17 @@ r"^Hello [a-z]$"
 
         self.assertEqual(tokens[7].lineno, 20)
         self.assertEqual(tokens[7].type, Lexer.CASE_LINE)
-        self.assertEqual(tokens[7].order, '2')
+        self.assertEqual(tokens[7].name, 'TEST 2:')
         self.assertEqual(tokens[7].value, None)
 
         self.assertEqual(preamble.strip(), 'import sys')
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 5)
-        self.assertEqual(cases[0].name, 'sanity')
+        self.assertEqual(cases[0].name, 'TEST 1: sanity')
 
         self.assertEqual(len(cases[1].items), 1)
-        self.assertEqual(cases[1].name, None)
+        self.assertEqual(cases[1].name, 'TEST 2:')
 
     @get_tokens()
     def test_case_12(self, tokens=None):

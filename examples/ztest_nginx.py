@@ -99,7 +99,7 @@ def add_test_case(zt, suite, cases, env):
     for case in cases:
         if case.name is None:
             case.name = ''
-        case.name = re.sub(r'[^\w]', '_', case.name)
+        case.name = re.sub(r'[^.\w]+', '_', case.name)
         suite.addTest(
             ContextTestCase.addContext(
                 type('%s<%s:%s>' % (case.name, zt, case.lineno),

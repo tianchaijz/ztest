@@ -11,6 +11,7 @@
 from __future__ import print_function
 
 import re
+import os
 import unittest
 
 __version__ = '0.0.1'
@@ -25,7 +26,7 @@ class Pattern(object):
     """
 
     comment_pattern = r'^\s*(//|#).*$'
-    case_line_pattern = r'^=== TEST (\d+(\.\d+)?): ?(.+)?$'
+    case_line_pattern = r'^=== (TEST (\d+(\.\d+)?): ?(.+)?)$'
     item_pattern = r'^--- (\w+) ?((?:\w+ ?)*)'
     item_line_pattern = r'%s: (.+)$' % item_pattern
     item_head_pattern = r'%s$' % item_pattern
@@ -74,8 +75,9 @@ class Token(object):
     types = ["PREAMBLE", "CASE_LINE",
              "ITEM", "ITEM_HEAD", "ITEM_BLOCK", "NEXT"]
 
-    def __init__(self, type, **kwargs):
+    def __init__(self, type, name, **kwargs):
         self.type = type
+        self.name = name
         self.value = None
         self.lineno = 0
 
@@ -83,15 +85,13 @@ class Token(object):
             setattr(self, k, v)
 
     def __str__(self):
-        if hasattr(self, 'name'):
-            return "Token<%s> %s(%s) at line: <%d>" % (Token.types[self.type],
-                                                       self.name,
-                                                       self.value,
-                                                       self.lineno)
+        if hasattr(self, 'option'):
+            return "Token<%s %s %r>(%s) at line: %d" % \
+                (Token.types[self.type], self.name, self.option, self.value,
+                 self.lineno)
         else:
-            return "Token<%s> (%s) at line: <%d>" % (Token.types[self.type],
-                                                     self.value,
-                                                     self.lineno)
+            return "Token<%s %s>(%s) at line: %d" % \
+                (Token.types[self.type], self.name, self.value, self.lineno)
 
     def __repr__(self):
         return self.__str__()
@@ -113,11 +113,15 @@ class Lexer(object):
     NEXT = 5
 
     def __init__(self, verbose=False):
-        self.verbose = verbose
         self.state = self.PREAMBLE
         self.blineno = 0
         self.elineno = 1
         self.tokens = []
+
+        if os.environ.get('ZTEST_VERBOSE') == '1':
+            self.verbose = True
+        else:
+            self.verbose = verbose
 
     def __call__(self, text):
         return self.lex(text)
@@ -130,7 +134,7 @@ class Lexer(object):
         self.state = token.type
         token.lineno = self.blineno
         if self.verbose:
-            print('<%s> %s' % (self.__class__, token))
+            print('%s %s' % (self.__class__, token))
         self.tokens.append(token)
 
     def lex(self, text):
@@ -180,6 +184,7 @@ class Lexer(object):
     def lex_preamble(self, m):
         self.append(Token(
             self.PREAMBLE,
+            'preamble',
             value=m.group(1)
         ))
 
@@ -187,15 +192,14 @@ class Lexer(object):
     def lex_case_line(self, m):
         self.append(Token(
             self.CASE_LINE,
-            order=m.group(1),
-            value=m.group(3)
+            m.group(1)
         ))
 
     @lex_decorator
     def lex_item_line(self, m):
         token = Token(
             self.ITEM,
-            name=m.group(1),
+            m.group(1),
             option=[],
             value=m.group(3).strip()
         )
@@ -208,7 +212,7 @@ class Lexer(object):
     def lex_item_head(self, m):
         token = Token(
             self.ITEM_HEAD,
-            name=m.group(1),
+            m.group(1),
             option=[]
         )
 
@@ -279,7 +283,7 @@ class Cases(object):
                 if items:
                     self.cases.append(Case(name, lineno, items))
                     items = []
-                name, lineno = token.value, token.lineno
+                name, lineno = token.name, token.lineno
         if items:
             self.cases.append(Case(name, lineno, items))
 
