@@ -1,0 +1,14 @@
+--- env
+_global = "0.0"
+
+
+=== TEST 1.0: locals
+--- setenv
+_global = "1.0"
+
+--- assert exec
+_.assertEqual(_global, "1.0")
+
+=== TEST 1.1: globals
+--- assert exec
+_.assertEqual(_global, "0.0")

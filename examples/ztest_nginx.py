@@ -14,6 +14,10 @@ sys.path.append(os.path.expandvars('$PWD'))
 
 from ztest import Lexer, Cases, ContextTestCase
 
+
+__version__ = "0.0.1"
+
+
 request_match = re.compile(
     r'^\s*(?P<method>\w+) (?P<uri>\S+) ?(?P<version>\S+)?(\n|$)'
     r'(?P<headers>(^.+(\n|$))+)?'
@@ -128,17 +132,20 @@ class Ctx(object):
 
 class TestNginx(ContextTestCase):
     common_items = ['config', 'setup', 'teardown']
-    assert_items = ['response', 'response_body', 'response_headers',
+
+    start_items = ['setenv']
+    union_items = ['request', 'more_headers',
+                   'request_body']
+    assert_items = ['assert', 'response_body', 'response_headers',
                     'status_code', 'no_error_log', 'error_log']
-    leading_items = ['setenv', 'request', 'more_headers', 'request_body']
-    block_items = leading_items + assert_items
-    items = common_items + block_items
 
     def setUp(self):
         self.setup_ = None
         self.teardown_ = None
         self.skip = False
         self.error_log = ''
+        self.locals = {'_': self}
+        self.globals = None
 
         if self.__class__.__name__ == 'TestNginx':
             self.skip = True
@@ -150,10 +157,7 @@ class TestNginx(ContextTestCase):
         self.name = self.ctx.case.name
         self.items = self.ctx.case.items
         if isinstance(self.ctx.env, dict):
-            self.env = self.ctx.env
-        else:
-            self.env = {}
-        self.env['_'] = self
+            self.globals = self.ctx.env
 
         self.prepare()
 
@@ -196,30 +200,35 @@ class TestNginx(ContextTestCase):
     def prepare(self):
         for idx, item in enumerate(self.items):
             if item.name in TestNginx.common_items:
-                if 'eval' in item.option:
-                    item.value = eval(item.value, None, self.env)
+                self.eval_item(item)
                 getattr(self, item.name)(item.value)
-            if item.name in TestNginx.leading_items:
+            else:
                 break
         self.items = self.items[idx:]
 
     def _blocks(self):
         block = {}
         for item in self.items:
-            if 'eval' in item.option:
-                item.value = eval(item.value, None, self.env)
-            if item.name in TestNginx.leading_items:
+            self.eval_item(item)
+            if item.name in TestNginx.union_items:
                 if item.name in block:
                     yield block
                     block = {}
                 block[item.name] = item
-            elif item.name in TestNginx.assert_items:
+            else:
                 if block:
                     yield block
                 yield item
 
+    def eval_item(self, item):
+        if 'eval' in item.option:
+            item.value = self._eval(item.value)
+
     def _exec(self, code):
-        exec(code, None, self.env)
+        exec(code, self.globals, self.locals)
+
+    def _eval(self, code):
+        return eval(code, self.globals, self.locals)
 
     @get_nginx_log
     def do_request(self, block):
@@ -269,9 +278,6 @@ class TestNginx(ContextTestCase):
         else:
             self.assertEqual(first, second)
 
-    def assert_response(self, r, item):
-        self._exec(item.value)
-
     def assert_response_body(self, r, item):
         self.more_assert(item.value, r.content, item.option)
 
@@ -306,10 +312,27 @@ class TestNginx(ContextTestCase):
         m = re.search(r'.+?\[(%s)\]' % '|'.join(level), self.error_log)
         assert not m, 'error log found: ' + m.string
 
+    def do_assert(self, item):
+        if 'exec' in item.option:
+            return self._exec(item.value)
+
+        r = self.locals['r']
+        assert r, 'no request found'
+
+        if (isinstance(r, list) or isinstance(item.value, list)) and \
+                type(r) != type(item.value):
+            raise Exception('unmatched assert')
+        if isinstance(r, list):
+            for idx, _r in enumerate(r):
+                _item = copy.deepcopy(item)
+                _item.value = item.value[idx]
+                getattr(self, 'assert_' + item.name)(_r, _item)
+        else:
+            getattr(self, 'assert_' + item.name)(r, item)
+
     def test_requests(self):
         if self.skip or self.items is None:
             return
-        r = None
         for block in self._blocks():
             if isinstance(block, dict):
                 if 'request' not in block:
@@ -319,23 +342,11 @@ class TestNginx(ContextTestCase):
                 elif isinstance(block['request'].value, str):
                     r = self.do_request(block)
                 if r:
-                    self.env['r'] = r
-                continue
-
-            assert self.env['r'], 'no request found'
-            if 'exec' in block.option:
-                self._exec(block.value)
-                continue
-            if (isinstance(r, list) or isinstance(block.value, list)) and \
-                    type(r) != type(block.value):
-                raise Exception('unmatched assert')
-            if isinstance(r, list):
-                for idx, _r in enumerate(r):
-                    _block = copy.deepcopy(block)
-                    _block.value = block.value[idx]
-                    getattr(self, 'assert_' + block.name)(_r, _block)
+                    self.locals['r'] = r
+            elif block.name in self.start_items:
+                getattr(self, block.name)(block.value)
             else:
-                getattr(self, 'assert_' + block.name)(r, block)
+                self.do_assert(block)
 
 
 def run_tests():
