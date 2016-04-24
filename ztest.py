@@ -17,7 +17,7 @@ import unittest
 __version__ = '0.0.1'
 __author__ = 'Jinzheng Zhang <tianchaijz@gmail.com>'
 __all__ = [
-    'Pattern', 'Lexer', 'LexException', 'Cases', 'ContextTestCase'
+    'Pattern', 'Lexer', 'LexerException', 'Cases', 'ContextTestCase'
 ]
 
 
@@ -25,7 +25,7 @@ class Pattern(object):
     """ Patterns for ztest.
     """
 
-    comment_pattern = r'^\s*(//|#).*$'
+    comment_pattern = r'^\s*//.*$'
     delimiter_pattern = '(?P<delimiter>__EOF__)$'
     case_line_pattern = r'^=== (TEST (\d+(\.\d+)?): ?(.+)?)$'
     item_pattern = r'^--- (\w+) ?((?:\w+ ?)*)'
@@ -34,10 +34,6 @@ class Pattern(object):
 
     comment_line = re.compile(comment_pattern, re.M)
     blank_line = re.compile(r'^\s*\n+')
-    preamble = re.compile(
-        r'([\s\S]*)'
-        r'^__DATA__(?:\n*|$)', re.M
-    )
     case_line = re.compile(case_line_pattern, re.M)
     item_line = re.compile(item_line_pattern, re.M)
     item_head = re.compile(item_head_pattern, re.M)
@@ -74,8 +70,8 @@ def lex_decorator(fn):
 
 
 class Token(object):
-    types = ["PREAMBLE", "CASE_LINE",
-             "ITEM", "ITEM_HEAD", "ITEM_BLOCK", "NEXT"]
+    types = ["ENV", "CASE_LINE",
+             "ITEM", "ITEM_HEAD", "ITEM_BLOCK"]
 
     def __init__(self, type, name, **kwargs):
         self.type = type
@@ -107,15 +103,16 @@ class Lexer(object):
              'item_line', 'item_head',
              'string_block', 'item_block']
 
-    PREAMBLE = 0
+    ENV = 0
     CASE_LINE = 1
     ITEM = 2
     ITEM_HEAD = 3
     ITEM_BLOCK = 4
-    NEXT = 5
+
+    ENV_NAME = 'env'
 
     def __init__(self, verbose=False):
-        self.state = self.PREAMBLE
+        self.state = self.ENV
         self.blineno = 0
         self.elineno = 1
         self.tokens = []
@@ -151,16 +148,12 @@ class Lexer(object):
 
         while text:
             m, position = None, None
-            if self.state == self.PREAMBLE and Pattern.preamble.match(text):
-                m = process(text, 'preamble')
-                self.state = self.NEXT
-            else:
-                for key in self.rules:
-                    m = process(text, key)
-                    if m is not None:
-                        break
+            for key in self.rules:
+                m = process(text, key)
+                if m is not None:
+                    break
             if m is None:
-                raise LexException('unexpected text: %s' % text)
+                raise LexerException('unexpected text: %s' % text)
 
             if isinstance(m, int):
                 position = m
@@ -168,7 +161,10 @@ class Lexer(object):
                 position = len(m.group(0))
             text = text[position:]
 
-        for token in self.tokens:
+        for idx, token in enumerate(self.tokens):
+            if idx == 0 and token.name == Lexer.ENV_NAME:
+                token.type = self.ENV
+                continue
             if token.type == self.ITEM_HEAD:
                 token.type = self.ITEM
 
@@ -181,14 +177,6 @@ class Lexer(object):
     @lex_decorator
     def lex_comment_line(self, m):
         pass  # skip comment
-
-    @lex_decorator
-    def lex_preamble(self, m):
-        self.append(Token(
-            self.PREAMBLE,
-            'preamble',
-            value=m.group(1)
-        ))
 
     @lex_decorator
     def lex_case_line(self, m):
@@ -226,7 +214,7 @@ class Lexer(object):
     def lex_item_block(self, text):
         if len(self.tokens) == 0 or \
                 self.tokens[-1].type != self.ITEM_HEAD:
-            raise LexException('unexpected block: %s' % text)
+            raise LexerException('unexpected block: %s' % text)
 
         m = Pattern.item_block.search(text)
         if m is None:
@@ -247,13 +235,13 @@ class Lexer(object):
     def lex_string_block(self, m):
         if len(self.tokens) == 0 or \
                 self.tokens[-1].type != self.ITEM_HEAD:
-            raise LexException('unexpected string: %s' % m.group(0))
+            raise LexerException('unexpected string: %s' % m.group(0))
 
         self.tokens[-1].type = self.ITEM
         self.tokens[-1].value = m.group(2)
 
 
-class LexException(Exception):
+class LexerException(Exception):
     pass
 
 
@@ -272,18 +260,18 @@ class Case(object):
 
 class Cases(object):
     def __init__(self):
-        self.preamble = None
+        self.env = None
         self.cases = []
 
     def __call__(self, tokens):
         self.parse(tokens)
-        return (self.preamble, self.cases)
+        return (self.env, self.cases)
 
     def parse(self, tokens):
         name, lineno, items = None, 0, []
         for token in tokens:
-            if token.type == Lexer.PREAMBLE:
-                self.preamble = token.value
+            if token.type == Lexer.ENV:
+                self.env = token.value
             if token.type == Lexer.ITEM:
                 items.append(token)
             if token.type == Lexer.CASE_LINE:

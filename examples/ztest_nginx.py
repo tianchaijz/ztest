@@ -345,11 +345,11 @@ def run_tests():
 
     suite = unittest.TestSuite()
     for zt in zts:
-        env = {}
-        preamble, cases = Cases()(Lexer()(open(zt).read()))
-        if preamble:
-            exec(preamble, None, env)
-        add_test_case(zt, suite, cases, env)
+        _env = {}
+        env, cases = Cases()(Lexer()(open(zt).read()))
+        if env:
+            exec(env, None, _env)
+        add_test_case(zt, suite, cases, _env)
 
     return unittest.TextTestRunner(verbosity=2).run(suite)
 

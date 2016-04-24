@@ -1,6 +1,6 @@
+--- env
 _host = "tianchaijz.me"
 
-__DATA__
 
 === TEST 1.0: sanity 0
 --- config

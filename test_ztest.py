@@ -1,6 +1,6 @@
 import unittest
 from functools import wraps
-from ztest import Lexer, LexException, Cases
+from ztest import Lexer, LexerException, Cases
 
 
 def get_tokens(verbose=False, raises=None, raises_regexp=None):
@@ -29,7 +29,7 @@ def get_cases(verbose=False):
             assert fn.__doc__
             lexer = Lexer(verbose=verbose)
             tokens = lexer(fn.__doc__)
-            kwargs['preamble'], kwargs['cases'] = Cases()(tokens)
+            kwargs['env'], kwargs['cases'] = Cases()(tokens)
             return fn(*args, **kwargs)
         return wrapped
     return wrapper
@@ -37,103 +37,95 @@ def get_cases(verbose=False):
 
 class TestZtest(unittest.TestCase):
     @get_tokens()
-    def test_preamble_00(self, tokens=None):
-        '''import sys
-__DATA__'''
+    def test_env_00(self, tokens=None):
+        '''--- env
+import sys
+'''
         self.assertEqual(len(tokens), 1)
+
         self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
+        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].value, 'import sys')
+
+    @get_tokens()
+    def test_env_01(self, tokens=None):
+        '''--- env
+import sys
+__EOF__
+'''
+        self.assertEqual(len(tokens), 1)
+
+        self.assertEqual(tokens[0].lineno, 1)
+        self.assertEqual(tokens[0].type, Lexer.ENV)
         self.assertEqual(tokens[0].value, '''import sys
 ''')
 
     @get_tokens()
-    def test_preamble_01(self, tokens=None):
+    def test_env_02(self, tokens=None):
         '''
+--- env
 import sys
-
-__DATA__'''
-        self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
-        self.assertEqual(tokens[0].value, '''
-import sys
-
-''')
-
-    @get_tokens()
-    def test_preamble_02(self, tokens=None):
-        '''
-import sys
-
-__DATA__
 '''
         self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
-        self.assertEqual(tokens[0].value, '''
-import sys
 
-''')
+        self.assertEqual(tokens[0].lineno, 2)
+        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].value, 'import sys')
 
+    @get_cases()
     @get_tokens()
-    def test_preamble_03(self, tokens=None):
+    def test_env_03(self, tokens=None, env=False, cases=None):
         '''
-import sys
-
-__DATA__
-
+--- env
+=== TEST 1.0:
 '''
-        self.assertEqual(len(tokens), 1)
-        self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
-        self.assertEqual(tokens[0].value, '''
-import sys
+        self.assertEqual(len(tokens), 2)
+        self.assertEqual(env, None)
 
-''')
+        self.assertEqual(tokens[0].lineno, 2)
+        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].value, None)
 
     @get_tokens()
     def test_case_00(self, tokens=None):
         '''
+--- env
 import sys
 
-__DATA__
 
 === TEST 1: sanity
 '''
         self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.PREAMBLE)
-        self.assertEqual(tokens[0].value, '''
-import sys
+        self.assertEqual(tokens[0].lineno, 2)
+        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].value, 'import sys')
 
-''')
         self.assertEqual(tokens[1].lineno, 6)
         self.assertEqual(tokens[1].type, Lexer.CASE_LINE)
         self.assertEqual(tokens[1].name, 'TEST 1: sanity')
 
     @get_tokens()
     def test_case_01(self, tokens=None):
-        '''
+        '''--- env
 import sys
 
-__DATA__
 
 === TEST 1: sanity
 --- request
 '''
         self.assertEqual(len(tokens), 3)
 
-        self.assertEqual(tokens[2].lineno, 7)
+        self.assertEqual(tokens[2].lineno, 6)
         self.assertEqual(tokens[2].type, Lexer.ITEM)
         self.assertEqual(tokens[2].name, 'request')
 
     @get_tokens()
     def test_case_02(self, tokens=None):
         '''
+--- env
 import sys
 
-__DATA__
 
 === TEST 1: sanity
 --- request eval
@@ -276,15 +268,15 @@ hello
 
     @get_cases()
     @get_tokens()
-    def test_case_10(self, tokens=None, preamble=None, cases=None):
+    def test_case_10(self, tokens=None, env=None, cases=None):
         '''
-# this is a comment
+// this is a comment
 === TEST 1.1: sanity 1
 --- request eval: GET /
 
 === TEST 1.2: sanity 2
 // this is a comment
-# this is a comment too
+// this is a comment too
 --- request eval: GET /
 '''
         self.assertEqual(len(tokens), 4)
@@ -296,7 +288,7 @@ hello
         self.assertEqual(tokens[3].name, 'request')
         self.assertEqual(tokens[3].value, 'GET /')
 
-        self.assertEqual(preamble, None)
+        self.assertEqual(env, None)
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 1)
@@ -307,11 +299,11 @@ hello
 
     @get_cases()
     @get_tokens()
-    def test_case_11(self, tokens=None, preamble=None, cases=None):
+    def test_case_11(self, tokens=None, env=None, cases=None):
         '''
+--- env
 import sys
 
-__DATA__
 === TEST 1: sanity
 
 --- http_config
@@ -347,7 +339,7 @@ r"^Hello [a-z]$"
         self.assertEqual(tokens[7].name, 'TEST 2:')
         self.assertEqual(tokens[7].value, None)
 
-        self.assertEqual(preamble.strip(), 'import sys')
+        self.assertEqual(env, 'import sys')
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 5)
@@ -359,14 +351,14 @@ r"^Hello [a-z]$"
     @get_tokens()
     def test_case_12(self, tokens=None):
         '''
+--- env
 import sys
 
-__DATA__
 
 === TEST 1: sanity
 
 --- http_config
-# pass
+// pass
 --- server_config
 
 --- request
@@ -395,13 +387,13 @@ __DATA__
     @get_tokens()
     def test_case_13(self, tokens=None):
         '''
+--- env
 import sys
 
-__DATA__
 
 === TEST 1: sanity
 --- http_config
-# this is a comment
+// this is a comment
 ```
 gzip on;
 ```
@@ -577,7 +569,7 @@ GET /
     @get_tokens()
     def test_comment_01(self, tokens=None):
         '''
-# sanity test
+// sanity test
 === TEST 1: sanity
 --- request eval
 GET /
@@ -595,49 +587,44 @@ GET /
     @get_tokens()
     def test_comment_02(self, tokens=None):
         '''
-__DATA__
-# sanity test
+// sanity test
 === TEST 1: sanity
 --- request eval
 GET /
 // this is a comment
 '''
 
-        self.assertEqual(len(tokens), 3)
+        self.assertEqual(len(tokens), 2)
 
-        self.assertEqual(tokens[2].lineno, 5)
-        self.assertEqual(tokens[2].type, Lexer.ITEM)
-        self.assertEqual(tokens[2].name, 'request')
-        self.assertEqual(tokens[2].option, ['eval'])
-        self.assertEqual(tokens[2].value, 'GET /')
+        self.assertEqual(tokens[1].lineno, 4)
+        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].name, 'request')
+        self.assertEqual(tokens[1].option, ['eval'])
+        self.assertEqual(tokens[1].value, 'GET /')
 
-    @get_tokens(raises=LexException, raises_regexp='unexpected block: 1')
+    @get_tokens(raises=LexerException, raises_regexp='unexpected block: 1')
     def test_lex_exception_00(self, tokens=None):
         '''
-import sys
-
-__DATA__
+=== TEST 1.0:
 
 1'''
 
-    @get_tokens(raises=LexException,
+    @get_tokens(raises=LexerException,
                 raises_regexp='unexpected string: ```1```')
     def test_lex_exception_01(self, tokens=None):
         '''
-import sys
-
-__DATA__
+=== TEST 1.0:
 
 ```1```
 '''
 
-    @get_tokens(raises=LexException,
+    @get_tokens(raises=LexerException,
                 raises_regexp='unexpected block: 1')
     def test_lex_exception_02(self, tokens=None):
         '''
+--- env
 import sys
 
-__DATA__
 
 --- request
 ```
@@ -646,18 +633,18 @@ __DATA__
 ```
 '''
 
-    @get_tokens(raises=LexException,
+    @get_tokens(raises=LexerException,
                 raises_regexp='unexpected block: __EOF__')
     def test_lex_exception_03(self, tokens=None):
         '''
+--- env
 import sys
-
-__DATA__
 
 --- request
 __EOF__
 __EOF__
 '''
+
 
 if __name__ == '__main__':
     unittest.main()
