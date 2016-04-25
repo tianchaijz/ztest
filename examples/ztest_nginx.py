@@ -62,7 +62,11 @@ def shell(command):
         shell=True
     )
 
-    return process.communicate()[0]
+    return process
+
+
+def system(command):
+    os.system(command)
 
 
 def gather_files(test_dir):
@@ -133,23 +137,30 @@ class Ctx(object):
 class TestNginx(ContextTestCase):
     common_items = ['config', 'setup', 'teardown']
 
-    start_items = ['setenv']
+    alone_items = ['setenv', 'shell', 'reload_nginx', 'restart_nginx']
     union_items = ['request', 'more_headers',
                    'request_body']
     assert_items = ['assert', 'response_body', 'response_headers',
                     'status_code', 'no_error_log', 'error_log']
 
+    nginx_bin = os.path.join(openresty_root, 'sbin/nginx')
+    class_name = 'TestNginx'
+
     def setUp(self):
         self.setup_ = None
         self.teardown_ = None
         self.skip = False
-        self.error_log = ''
-        self.locals = {'_': self}
-        self.globals = None
 
-        if self.__class__.__name__ == 'TestNginx':
+        if self.__class__.__name__ == self.class_name:
             self.skip = True
             return
+
+        self.error_log = ''
+        self.server_root = os.path.join(os.path.expandvars('$PWD'),
+                                        test_directory, 'servroot')
+        self.pid_file = os.path.join(self.server_root, 'logs/nginx.pid')
+        self.locals = {'_': self}
+        self.globals = None
 
         if self.ctx is None or not self.ctx.case:
             raise Exception('no test case found')
@@ -168,25 +179,58 @@ class TestNginx(ContextTestCase):
         if self.teardown_:
             self.teardown_()
 
+    def get_nginx_pid(self):
+        pid_file = self.pid_file
+        if not os.path.isfile(pid_file):
+            return None
+        pid = open(pid_file).read().strip()
+        try:
+            int(pid)
+        except:
+            return None
+
+        p = shell(['ps', '-p', pid])
+        out = p.communicate()[0]
+        if p.returncode == 0 and out.find('nginx') != -1:
+            return pid
+        return None
+
+    def start_nginx(self):
+        if self.get_nginx_pid():
+            return
+        system('%s -p %s -c %s' % (self.nginx_bin,
+               self.server_root, 'conf/nginx.conf'))
+
+    def stop_nginx(self):
+        pid = self.get_nginx_pid()
+        if pid:
+            system('kill -QUIT %s' % pid)
+        system('rm -f %s' % self.pid_file)
+
+    def reload_nginx(self):
+        pid = self.get_nginx_pid()
+        if pid:
+            system('kill -HUP %s' % pid)
+        else:
+            self.start_nginx()
+
+    def restart_nginx(self):
+        self.stop_nginx()
+        self.start_nginx()
+
     def config(self, data):
-        servroot = os.path.join(os.path.expandvars('$PWD'), test_directory,
-                                'servroot')
+        servroot = self.server_root
         logspath = os.path.join(servroot, 'logs')
         confpath = os.path.join(servroot, 'conf')
-        nginxbin = os.path.join(openresty_root, 'sbin', 'nginx')
 
-        shell('mkdir -p %s' % logspath)
-        shell('cp -r %s/conf %s' % (openresty_root, servroot))
+        system('mkdir -p %s' % logspath)
+        system('cp -r %s/conf %s' % (openresty_root, servroot))
 
         conf = os.path.join(confpath, 'nginx.conf')
         open(conf, 'w+').write(nginx_template % {'config': data})
 
-        pid = os.path.join(logspath, 'nginx.pid')
-        if os.path.isfile(pid):
-            shell('kill -HUP `cat %s`' % pid)
-            time.sleep(.2)
-        else:
-            shell('%s -p %s -c %s' % (nginxbin, servroot, 'conf/nginx.conf'))
+        self.reload_nginx()
+        time.sleep(.2)
 
     def setup(self, code):
         self.setup_ = lambda: self._exec(code)
@@ -194,12 +238,12 @@ class TestNginx(ContextTestCase):
     def teardown(self, code):
         self.teardown_ = lambda: self._exec(code)
 
-    def setenv(self, code):
-        self._exec(code)
+    def setenv(self, item):
+        self._exec(item.value)
 
     def prepare(self):
         for idx, item in enumerate(self.items):
-            if item.name in TestNginx.common_items:
+            if item.name in self.common_items:
                 self.eval_item(item)
                 getattr(self, item.name)(item.value)
             else:
@@ -210,7 +254,7 @@ class TestNginx(ContextTestCase):
         block = {}
         for item in self.items:
             self.eval_item(item)
-            if item.name in TestNginx.union_items:
+            if item.name in self.union_items:
                 if item.name in block:
                     yield block
                     block = {}
@@ -320,7 +364,7 @@ class TestNginx(ContextTestCase):
         assert r, 'no request found'
 
         if (isinstance(r, list) or isinstance(item.value, list)) and \
-                type(r) != type(item.value):
+                not isinstance(r, type(item.value)):
             raise Exception('unmatched assert')
         if isinstance(r, list):
             for idx, _r in enumerate(r):
@@ -330,7 +374,7 @@ class TestNginx(ContextTestCase):
         else:
             getattr(self, 'assert_' + item.name)(r, item)
 
-    def test_requests(self):
+    def test_run(self):
         if self.skip or self.items is None:
             return
         for block in self._blocks():
@@ -343,8 +387,8 @@ class TestNginx(ContextTestCase):
                     r = self.do_request(block)
                 if r:
                     self.locals['r'] = r
-            elif block.name in self.start_items:
-                getattr(self, block.name)(block.value)
+            elif block.name in self.alone_items:
+                getattr(self, block.name)(block)
             else:
                 self.do_assert(block)
 
