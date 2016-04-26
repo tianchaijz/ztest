@@ -26,7 +26,7 @@ request_match = re.compile(
 
 test_directory = 't/nginx'
 openresty_root = '/usr/local/openresty/nginx'
-nginx_log_path = 't/nginx/servroot/logs/error.log'
+nginx_error_log = 't/nginx/servroot/logs/error.log'
 nginx_api = '127.0.0.1:1984'
 nginx_template = '''
 worker_processes  1;
@@ -95,10 +95,10 @@ def seek_read(f, pos):
 
 def get_nginx_log(fn):
     def wrapper(*args, **kwargs):
-        start = file_size(nginx_log_path)
+        start = file_size(nginx_error_log)
         self = args[0]
         r = fn(*args, **kwargs)
-        self.error_log += seek_read(nginx_log_path, start)
+        self.error_log += seek_read(nginx_error_log, start)
         return r
     return wrapper
 

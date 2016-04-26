@@ -15,9 +15,9 @@ print("Hello World!")
 --- setenv
 _global = "1.0"
 
---- assert exec
+--- assert
 _.assertEqual(_global, "1.0")
 
 === TEST 1.1: globals
---- assert exec
+--- assert
 _.assertEqual(_global, "0.0")
