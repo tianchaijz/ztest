@@ -70,7 +70,7 @@ def lex_decorator(fn):
 
 
 class Token(object):
-    types = ["ENV", "CASE_LINE",
+    types = ["GLOBAL", "CASE_LINE",
              "ITEM", "ITEM_HEAD", "ITEM_BLOCK"]
 
     def __init__(self, type, name, **kwargs):
@@ -103,16 +103,14 @@ class Lexer(object):
              'item_line', 'item_head',
              'string_block', 'item_block']
 
-    ENV = 0
+    GLOBAL = 0
     CASE_LINE = 1
     ITEM = 2
     ITEM_HEAD = 3
     ITEM_BLOCK = 4
 
-    ENV_NAME = 'env'
-
     def __init__(self, verbose=False):
-        self.state = self.ENV
+        self.state = self.GLOBAL
         self.blineno = 0
         self.elineno = 1
         self.tokens = []
@@ -161,12 +159,15 @@ class Lexer(object):
                 position = len(m.group(0))
             text = text[position:]
 
-        for idx, token in enumerate(self.tokens):
-            if idx == 0 and token.name == Lexer.ENV_NAME:
-                token.type = self.ENV
+        seen_case_line = False
+        for token in self.tokens:
+            if token.type == Lexer.CASE_LINE and not seen_case_line:
+                seen_case_line = True
                 continue
             if token.type == self.ITEM_HEAD:
                 token.type = self.ITEM
+            if not seen_case_line and token.type == Lexer.ITEM:
+                token.type = Lexer.GLOBAL
 
         return self.tokens
 
@@ -260,18 +261,18 @@ class Case(object):
 
 class Cases(object):
     def __init__(self):
-        self.env = None
+        self.globals = {}
         self.cases = []
 
     def __call__(self, tokens):
         self.parse(tokens)
-        return (self.env, self.cases)
+        return (self.globals, self.cases)
 
     def parse(self, tokens):
         name, lineno, items = None, 0, []
         for token in tokens:
-            if token.type == Lexer.ENV:
-                self.env = token.value
+            if token.type == Lexer.GLOBAL:
+                self.globals[token.name] = token.value
             if token.type == Lexer.ITEM:
                 items.append(token)
             if token.type == Lexer.CASE_LINE:

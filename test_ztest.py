@@ -29,7 +29,7 @@ def get_cases(verbose=False):
             assert fn.__doc__
             lexer = Lexer(verbose=verbose)
             tokens = lexer(fn.__doc__)
-            kwargs['env'], kwargs['cases'] = Cases()(tokens)
+            kwargs['globals'], kwargs['cases'] = Cases()(tokens)
             return fn(*args, **kwargs)
         return wrapped
     return wrapper
@@ -37,18 +37,18 @@ def get_cases(verbose=False):
 
 class TestZtest(unittest.TestCase):
     @get_tokens()
-    def test_env_00(self, tokens=None):
+    def test_globals_00(self, tokens=None):
         '''--- env
 import sys
 '''
         self.assertEqual(len(tokens), 1)
 
         self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].value, 'import sys')
 
     @get_tokens()
-    def test_env_01(self, tokens=None):
+    def test_globals_01(self, tokens=None):
         '''--- env
 import sys
 __EOF__
@@ -56,12 +56,12 @@ __EOF__
         self.assertEqual(len(tokens), 1)
 
         self.assertEqual(tokens[0].lineno, 1)
-        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].value, '''import sys
 ''')
 
     @get_tokens()
-    def test_env_02(self, tokens=None):
+    def test_globals_02(self, tokens=None):
         '''
 --- env
 import sys
@@ -69,22 +69,33 @@ import sys
         self.assertEqual(len(tokens), 1)
 
         self.assertEqual(tokens[0].lineno, 2)
-        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].value, 'import sys')
 
     @get_cases()
     @get_tokens()
-    def test_env_03(self, tokens=None, env=False, cases=None):
+    def test_globals_03(self, tokens=None, globals=False, cases=None):
         '''
 --- env
+--- setup
+0
+--- teardown
+1
 === TEST 1.0:
 '''
-        self.assertEqual(len(tokens), 2)
-        self.assertEqual(env, None)
+        self.assertEqual(len(tokens), 4)
+
+        self.assertEqual(globals['env'], None)
+        self.assertEqual(globals['setup'], '0')
+        self.assertEqual(globals['teardown'], '1')
 
         self.assertEqual(tokens[0].lineno, 2)
-        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].value, None)
+
+        self.assertEqual(tokens[3].lineno, 7)
+        self.assertEqual(tokens[3].type, Lexer.CASE_LINE)
+        self.assertEqual(tokens[3].value, None)
 
     @get_tokens()
     def test_case_00(self, tokens=None):
@@ -98,7 +109,7 @@ import sys
         self.assertEqual(len(tokens), 2)
 
         self.assertEqual(tokens[0].lineno, 2)
-        self.assertEqual(tokens[0].type, Lexer.ENV)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].value, 'import sys')
 
         self.assertEqual(tokens[1].lineno, 6)
@@ -268,7 +279,7 @@ hello
 
     @get_cases()
     @get_tokens()
-    def test_case_10(self, tokens=None, env=None, cases=None):
+    def test_case_10(self, tokens=None, globals=None, cases=None):
         '''
 // this is a comment
 === TEST 1.1: sanity 1
@@ -288,7 +299,7 @@ hello
         self.assertEqual(tokens[3].name, 'request')
         self.assertEqual(tokens[3].value, 'GET /')
 
-        self.assertEqual(env, None)
+        self.assertEqual(globals, {})
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 1)
@@ -299,7 +310,7 @@ hello
 
     @get_cases()
     @get_tokens()
-    def test_case_11(self, tokens=None, env=None, cases=None):
+    def test_case_11(self, tokens=None, globals=None, cases=None):
         '''
 --- env
 import sys
@@ -339,7 +350,7 @@ r"^Hello [a-z]$"
         self.assertEqual(tokens[7].name, 'TEST 2:')
         self.assertEqual(tokens[7].value, None)
 
-        self.assertEqual(env, 'import sys')
+        self.assertEqual(globals['env'], 'import sys')
         self.assertEqual(len(cases), 2)
 
         self.assertEqual(len(cases[0].items), 5)
@@ -433,12 +444,12 @@ __EOF__
         self.assertEqual(len(tokens), 2)
 
         self.assertEqual(tokens[0].lineno, 2)
-        self.assertEqual(tokens[0].type, Lexer.ITEM)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].name, 'config')
         self.assertEqual(tokens[0].value, '')
 
         self.assertEqual(tokens[1].lineno, 5)
-        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].type, Lexer.GLOBAL)
         self.assertEqual(tokens[1].name, 'response_body')
         self.assertEqual(tokens[1].value, '''hello
 __EOF__ world
@@ -454,7 +465,7 @@ __EOF__ world
         self.assertEqual(len(tokens), 1)
 
         self.assertEqual(tokens[0].lineno, 2)
-        self.assertEqual(tokens[0].type, Lexer.ITEM)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].name, 'config')
         self.assertEqual(tokens[0].value, ' ')
 
@@ -472,12 +483,12 @@ GET /
         self.assertEqual(len(tokens), 2)
 
         self.assertEqual(tokens[0].lineno, 2)
-        self.assertEqual(tokens[0].type, Lexer.ITEM)
+        self.assertEqual(tokens[0].type, Lexer.GLOBAL)
         self.assertEqual(tokens[0].name, 'config')
         self.assertEqual(tokens[0].value, '')
 
         self.assertEqual(tokens[1].lineno, 6)
-        self.assertEqual(tokens[1].type, Lexer.ITEM)
+        self.assertEqual(tokens[1].type, Lexer.GLOBAL)
         self.assertEqual(tokens[1].name, 'request')
         self.assertEqual(tokens[1].value, 'GET /')
 
