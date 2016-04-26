@@ -134,14 +134,60 @@ class Ctx(object):
         self.env = env
 
 
+class Nginx(object):
+    def __init__(self, nginx_bin, prefix):
+        self.nginx_bin = nginx_bin
+        self.prefix = prefix
+        self.pid_file = os.path.join(self.prefix, 'logs/nginx.pid')
+
+    def pid(self):
+        pid_file = self.pid_file
+        if not os.path.isfile(pid_file):
+            return None
+        pid = open(pid_file).read().strip()
+        try:
+            int(pid)
+        except:
+            return None
+
+        p = shell(['ps', '-p', pid])
+        out = p.communicate()[0]
+        if p.returncode == 0 and out.find('nginx') != -1:
+            return pid
+        return None
+
+    def start(self):
+        if self.pid():
+            return
+        system('%s -p %s -c %s' % (self.nginx_bin,
+               self.prefix, 'conf/nginx.conf'))
+
+    def stop(self):
+        pid = self.pid()
+        if pid:
+            system('kill -QUIT %s' % pid)
+        system('rm -f %s' % self.pid_file)
+
+    def reload(self):
+        pid = self.pid()
+        if pid:
+            system('kill -HUP %s' % pid)
+        else:
+            self.start_nginx()
+
+    def restart(self):
+        self.stop()
+        self.start()
+
+
 class TestNginx(ContextTestCase):
     common_items = ['config', 'setup', 'teardown']
 
     alone_items = ['setenv', 'shell', 'reload_nginx', 'restart_nginx']
-    union_items = ['request', 'more_headers',
-                   'request_body']
+    union_items = ['request', 'more_headers', 'request_body']
     assert_items = ['assert', 'response_body', 'response_headers',
                     'status_code', 'no_error_log', 'error_log']
+    exec_items = ['assert']
 
     nginx_bin = os.path.join(openresty_root, 'sbin/nginx')
     class_name = 'TestNginx'
@@ -156,9 +202,9 @@ class TestNginx(ContextTestCase):
             return
 
         self.error_log = ''
-        self.server_root = os.path.join(os.path.expandvars('$PWD'),
-                                        test_directory, 'servroot')
-        self.pid_file = os.path.join(self.server_root, 'logs/nginx.pid')
+        self.nginx = Nginx(self.nginx_bin, os.path.join(
+                           os.path.expandvars('$PWD'),
+                           test_directory, 'servroot'))
         self.locals = {'_': self}
         self.globals = None
 
@@ -179,47 +225,21 @@ class TestNginx(ContextTestCase):
         if self.teardown_:
             self.teardown_()
 
-    def get_nginx_pid(self):
-        pid_file = self.pid_file
-        if not os.path.isfile(pid_file):
-            return None
-        pid = open(pid_file).read().strip()
-        try:
-            int(pid)
-        except:
-            return None
-
-        p = shell(['ps', '-p', pid])
-        out = p.communicate()[0]
-        if p.returncode == 0 and out.find('nginx') != -1:
-            return pid
-        return None
-
     def start_nginx(self):
-        if self.get_nginx_pid():
-            return
-        system('%s -p %s -c %s' % (self.nginx_bin,
-               self.server_root, 'conf/nginx.conf'))
+        self.nginx.start()
 
     def stop_nginx(self):
-        pid = self.get_nginx_pid()
-        if pid:
-            system('kill -QUIT %s' % pid)
-        system('rm -f %s' % self.pid_file)
+        self.nginx.stop()
 
     def reload_nginx(self):
-        pid = self.get_nginx_pid()
-        if pid:
-            system('kill -HUP %s' % pid)
-        else:
-            self.start_nginx()
+        self.nginx.reload()
 
     def restart_nginx(self):
-        self.stop_nginx()
-        self.start_nginx()
+        self.nginx.stop()
+        self.nginx.start()
 
     def config(self, data):
-        servroot = self.server_root
+        servroot = self.nginx.prefix
         logspath = os.path.join(servroot, 'logs')
         confpath = os.path.join(servroot, 'conf')
 
@@ -229,7 +249,7 @@ class TestNginx(ContextTestCase):
         conf = os.path.join(confpath, 'nginx.conf')
         open(conf, 'w+').write(nginx_template % {'config': data})
 
-        self.reload_nginx()
+        self.nginx.reload()
         time.sleep(.2)
 
     def setup(self, code):
@@ -357,7 +377,7 @@ class TestNginx(ContextTestCase):
         assert not m, 'error log found: ' + m.string
 
     def do_assert(self, item):
-        if 'exec' in item.option:
+        if item.name in self.exec_items or 'exec' in item.option:
             return self._exec(item.value)
 
         r = self.locals['r']
@@ -393,21 +413,33 @@ class TestNginx(ContextTestCase):
                 self.do_assert(block)
 
 
+def run_test_suite(suite):
+    r = unittest.TextTestRunner(verbosity=2).run(suite)
+    if r and (r.errors or r.failures):
+        sys.exit(1)
+
+
 def run_tests():
     zts = gather_files(test_directory)
     if not zts:
         return
 
-    suite = unittest.TestSuite()
     for zt in zts:
-        _env = {}
-        env, cases = Cases()(Lexer()(open(zt).read()))
-        if env:
-            exec(env, None, _env)
-        add_test_case(zt, suite, cases, _env)
+        env, suite = {}, unittest.TestSuite()
+        g, cases = Cases()(Lexer()(open(zt).read()))
 
-    return unittest.TextTestRunner(verbosity=2).run(suite)
+        if g.get('env'):
+            exec(g['env'], None, env)
+        if g.get('setup'):
+            exec(g['setup'], None, env)
 
-unittest_result = run_tests()
-if unittest_result and (unittest_result.errors or unittest_result.failures):
-    sys.exit(1)
+        add_test_case(zt, suite, cases, env)
+
+        try:
+            run_test_suite(suite)
+        finally:
+            if g.get('teardown'):
+                exec(g['teardown'], None, env)
+
+
+run_tests()

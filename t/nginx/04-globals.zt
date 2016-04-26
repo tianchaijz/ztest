@@ -1,6 +1,15 @@
 --- env
 _global = "0.0"
 
+--- setup
+def fn():
+    print("setup")
+fn()
+print(_global)
+
+--- teardown
+print("Hello World!")
+
 
 === TEST 1.0: locals
 --- setenv
