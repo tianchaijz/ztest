@@ -16,8 +16,8 @@ print("Hello World!")
 _global = "1.0"
 
 --- assert
-_.assertEqual(_global, "1.0")
+self.assertEqual(_global, "1.0")
 
 === TEST 1.1: globals
 --- assert
-_.assertEqual(_global, "0.0")
+self.assertEqual(_global, "0.0")

@@ -205,7 +205,7 @@ class TestNginx(ContextTestCase):
         self.nginx = Nginx(self.nginx_bin, os.path.join(
                            os.path.expandvars('$PWD'),
                            test_directory, 'servroot'))
-        self.locals = {'_': self}
+        self.locals = {'self': self}
         self.globals = None
 
         if self.ctx is None or not self.ctx.case:

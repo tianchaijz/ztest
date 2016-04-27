@@ -42,6 +42,6 @@ Host: tianchaijz.me
 ["world", "world"]
 --- response_headers exec
 ```
-_.assertEqual('tianchaijz.me', r[0].headers['Host'])
-_.assertEqual('tianchaijz.me', r[1].headers['Host'])
+self.assertEqual('tianchaijz.me', r[0].headers['Host'])
+self.assertEqual('tianchaijz.me', r[1].headers['Host'])
 ```
