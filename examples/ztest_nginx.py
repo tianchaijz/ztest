@@ -115,10 +115,10 @@ def add_test_case(zt, suite, cases, env):
 
 
 def get_headers(text):
-    if text is None:
-        return
-    lines = text.split('\n')
     headers = {}
+    if text is None:
+        return headers
+    lines = text.split('\n')
     for line in lines:
         line = line.strip()
         if line:
@@ -381,7 +381,7 @@ class TestNginx(ContextTestCase):
             return self._exec(item.value)
 
         r = self.locals['r']
-        assert r, 'no request found'
+        assert r is not None, 'no request found'
 
         if (isinstance(r, list) or isinstance(item.value, list)) and \
                 not isinstance(r, type(item.value)):
@@ -405,8 +405,7 @@ class TestNginx(ContextTestCase):
                     r = self.do_requests(block)
                 elif isinstance(block['request'].value, str):
                     r = self.do_request(block)
-                if r:
-                    self.locals['r'] = r
+                self.locals['r'] = r
             elif block.name in self.alone_items:
                 getattr(self, block.name)(block)
             else:
@@ -420,7 +419,11 @@ def run_test_suite(suite):
 
 
 def run_tests():
-    zts = gather_files(test_directory)
+    td = os.environ.get('ZTEST_DIR')
+    if td is None:
+        td = test_directory
+
+    zts = gather_files(td)
     if not zts:
         return
 
@@ -429,9 +432,9 @@ def run_tests():
         g, cases = Cases()(Lexer()(open(zt).read()))
 
         if g.get('env'):
-            exec(g['env'], None, env)
+            exec(g['env'], env, None)
         if g.get('setup'):
-            exec(g['setup'], None, env)
+            exec(g['setup'], env, None)
 
         add_test_case(zt, suite, cases, env)
 
