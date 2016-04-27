@@ -15,7 +15,7 @@ sys.path.append(os.path.expandvars('$PWD'))
 from ztest import Lexer, Cases, ContextTestCase
 
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 request_match = re.compile(
