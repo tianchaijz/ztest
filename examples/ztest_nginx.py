@@ -442,7 +442,7 @@ def run_tests():
             run_test_suite(suite)
         finally:
             if g.get('teardown'):
-                exec(g['teardown'], None, env)
+                exec(g['teardown'], env, None)
 
 
 run_tests()
