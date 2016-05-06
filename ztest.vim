@@ -46,7 +46,7 @@ syn match pythonFunction
     \ "\%(\%(def\s\|class\s\|@\)\s*\)\@<=\h\%(\w\|\.\)*" contained
 
 syn keyword ztestTodo      contained TODO FIXME XXX NOTE
-syn match   ztestComment   "//.*$" contains=ztestTodo
+syn match   ztestComment   "^\s*//.*$" contains=ztestTodo
 syn match   ztestComment   "\%^#!.*"
 syn match   ztestCaseLine  "^===.*"
 syn match   ztestItem      "^--- [a-z_]\+"
