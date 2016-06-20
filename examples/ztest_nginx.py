@@ -6,8 +6,10 @@ import re
 import sys
 import time
 import copy
+import logging
 import unittest
 import requests
+import subprocess
 from subprocess import Popen, PIPE
 
 sys.path.append(os.path.expandvars('$PWD'))
@@ -56,6 +58,8 @@ http {
 
 
 def shell(command):
+    if isinstance(command, list):
+        command = ' '.join(command)
     process = Popen(
         args=command,
         stdout=PIPE,
@@ -66,7 +70,9 @@ def shell(command):
 
 
 def system(command):
-    os.system(command)
+    if isinstance(command, list):
+        command = ' '.join(command)
+    return subprocess.call(command, shell=True, close_fds=True)
 
 
 def gather_files(test_dir):
@@ -95,18 +101,25 @@ def seek_read(f, pos):
 
 def get_nginx_log(fn):
     def wrapper(*args, **kwargs):
-        start = file_size(nginx_error_log)
         self = args[0]
+        err_log_file = os.path.join(self.nginx_prefix, 'logs/error.log')
+        start = file_size(err_log_file)
         r = fn(*args, **kwargs)
-        self.error_log += seek_read(nginx_error_log, start)
+        self.error_log += seek_read(err_log_file, start)
         return r
     return wrapper
 
 
-def add_test_case(zt, suite, cases, env):
+def sleep(t=0.1):
+    time.sleep(t)
+
+
+def add_test_case(zt, suite, cases, env, run_only=None):
     for case in cases:
         if case.name is None:
             case.name = ''
+        if run_only and not re.search(run_only, case.name):
+            continue
         case.name = re.sub(r'[^.\w]+', '_', case.name)
         suite.addTest(
             ContextTestCase.addContext(
@@ -128,6 +141,38 @@ def get_headers(text):
     return headers
 
 
+class LoggingFormatter(logging.Formatter):
+    def __init__(self, fmt, datefmt=None):
+        logging.Formatter.__init__(self, fmt, datefmt)
+        self.converter = time.gmtime
+
+    def formatException(self, exc_info):
+        text = logging.Formatter.formatException(self, exc_info)
+        text = '\n'.join(('! %s' % line) for line in text.splitlines())
+        return text
+
+
+def get_console_logger(name):
+    logging_fmt = '%(levelname)-8s [%(asctime)s] %(name)s: %(message)s'
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    ch.setFormatter(LoggingFormatter(logging_fmt))
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(ch)
+
+    return logger
+
+
+logger = get_console_logger('ztest')
+
+
+def LOG_ERR(s):
+    logger.log(logging.ERROR, s)
+
+
 class Ctx(object):
     def __init__(self, case, env):
         self.case = case
@@ -135,19 +180,22 @@ class Ctx(object):
 
 
 class Nginx(object):
-    def __init__(self, nginx_bin, prefix):
-        self.nginx_bin = nginx_bin
+    def __init__(self, prefix, nginx_bin=None):
         self.prefix = prefix
+        if nginx_bin:
+            self.nginx_bin = nginx_bin
+        else:
+            self.nginx_bin = os.path.join(self.prefix, 'sbin/nginx')
         self.pid_file = os.path.join(self.prefix, 'logs/nginx.pid')
 
     def pid(self):
         pid_file = self.pid_file
         if not os.path.isfile(pid_file):
             return None
-        pid = open(pid_file).read().strip()
         try:
+            pid = open(pid_file).read().strip()
             int(pid)
-        except:
+        except (IOError, ValueError):
             return None
 
         p = shell(['ps', '-p', pid])
@@ -161,19 +209,25 @@ class Nginx(object):
             return
         system('%s -p %s -c %s' % (self.nginx_bin,
                self.prefix, 'conf/nginx.conf'))
+        while not self.pid():
+            sleep()
 
     def stop(self):
         pid = self.pid()
-        if pid:
-            system('kill -QUIT %s' % pid)
-        system('rm -f %s' % self.pid_file)
+        if not pid:
+            return
+        system('kill -QUIT %s' % pid)
+        while self.pid():
+            sleep()
 
-    def reload(self):
+    def reload(self, pause=False):
         pid = self.pid()
         if pid:
             system('kill -HUP %s' % pid)
         else:
-            self.start_nginx()
+            self.start()
+        if pause:
+            sleep(.5)
 
     def restart(self):
         self.stop()
@@ -189,7 +243,10 @@ class TestNginx(ContextTestCase):
                     'status_code', 'no_error_log', 'error_log']
     exec_items = ['assert']
 
+    nginx = None
     nginx_bin = os.path.join(openresty_root, 'sbin/nginx')
+    nginx_prefix = os.path.join(os.path.expandvars('$PWD'),
+                                test_directory, 'servroot')
     class_name = 'TestNginx'
 
     def setUp(self):
@@ -202,9 +259,6 @@ class TestNginx(ContextTestCase):
             return
 
         self.error_log = ''
-        self.nginx = Nginx(self.nginx_bin, os.path.join(
-                           os.path.expandvars('$PWD'),
-                           test_directory, 'servroot'))
         self.locals = {'self': self}
         self.globals = None
 
@@ -216,27 +270,29 @@ class TestNginx(ContextTestCase):
         if isinstance(self.ctx.env, dict):
             self.globals = self.ctx.env
 
+        self.nginx = Nginx(self.nginx_prefix, self.nginx_bin)
         self.prepare()
 
         if self.setup_:
             self.setup_()
 
+        self.start_nginx()
+
     def tearDown(self):
         if self.teardown_:
             self.teardown_()
 
-    def start_nginx(self):
+    def start_nginx(self, *args):
         self.nginx.start()
 
-    def stop_nginx(self):
+    def stop_nginx(self, *args):
         self.nginx.stop()
 
-    def reload_nginx(self):
-        self.nginx.reload()
+    def reload_nginx(self, *args):
+        self.nginx.reload(True)
 
-    def restart_nginx(self):
-        self.nginx.stop()
-        self.nginx.start()
+    def restart_nginx(self, *args):
+        self.nginx.restart()
 
     def config(self, data):
         servroot = self.nginx.prefix
@@ -282,6 +338,7 @@ class TestNginx(ContextTestCase):
             else:
                 if block:
                     yield block
+                    block = {}
                 yield item
 
     def eval_item(self, item):
@@ -315,14 +372,19 @@ class TestNginx(ContextTestCase):
             else:
                 body += block['request_body'].value
 
+        allow_redirects = False
+        if 'allow_redirects' in block:
+            allow_redirects = True
+
         headers = get_headers(headers)
         method, uri = m.group('method'), m.group('uri')
         if uri.startswith('/'):
             uri = 'http://%s%s' % (nginx_api, uri)
         elif not re.match(r'https?://'):
             uri = 'http://%s/%s' % (nginx_api, uri)
-        return getattr(requests,
-                       method.lower())(uri, headers=headers, data=body)
+        return getattr(requests, method.lower())(
+                       uri, headers=headers, data=body,
+                       allow_redirects=allow_redirects)
 
     def do_requests(self, block):
         r = []
@@ -334,13 +396,13 @@ class TestNginx(ContextTestCase):
             r.append(self.do_request(_block))
         return r
 
-    def more_assert(self, first, second, option):
+    def more_assert(self, pattern, text, option):
         if 'like' in option:
-            assert re.match(first, second)
+            assert re.search(pattern, text), text
         elif 'unlike' in option:
-            assert not re.match(first, second)
+            assert not re.search(pattern, text), text
         else:
-            self.assertEqual(first, second)
+            self.assertEqual(pattern, text)
 
     def assert_response_body(self, r, item):
         self.more_assert(item.value, r.content, item.option)
@@ -351,7 +413,7 @@ class TestNginx(ContextTestCase):
             self.more_assert(v, r.headers[k], item.option)
 
     def assert_status_code(self, r, item):
-        self.more_assert(item.value, str(r.status_code), item.option)
+        self.more_assert(int(item.value), r.status_code, item.option)
 
     def assert_error_log(self, _, item):
         if isinstance(item.value, list):
@@ -399,8 +461,8 @@ class TestNginx(ContextTestCase):
             return
         for block in self._blocks():
             if isinstance(block, dict):
-                if 'request' not in block:
-                    continue
+                if block.get('request') is None:
+                    raise Exception('no request found')
                 if isinstance(block['request'].value, list):
                     r = self.do_requests(block)
                 elif isinstance(block['request'].value, str):
@@ -409,7 +471,11 @@ class TestNginx(ContextTestCase):
             elif block.name in self.alone_items:
                 getattr(self, block.name)(block)
             else:
-                self.do_assert(block)
+                try:
+                    self.do_assert(block)
+                except:
+                    LOG_ERR('%s at line: %d' % (block.name, block.lineno))
+                    raise
 
 
 def run_test_suite(suite):
@@ -428,7 +494,7 @@ def run_tests():
         return
 
     for zt in zts:
-        env, suite = {}, unittest.TestSuite()
+        env, suite = {'TestNginx': TestNginx}, unittest.TestSuite()
         g, cases = Cases()(Lexer()(open(zt).read()))
 
         if g.get('env'):
@@ -436,7 +502,8 @@ def run_tests():
         if g.get('setup'):
             exec(g['setup'], env, None)
 
-        add_test_case(zt, suite, cases, env)
+        run_only = os.environ.get('ZTEST_RUN_ONLY')
+        add_test_case(zt, suite, cases, env, run_only=run_only)
 
         try:
             run_test_suite(suite)
